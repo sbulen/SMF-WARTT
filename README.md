@@ -5,9 +5,9 @@ The goal here is to automate response, in real-time, of increased guest traffic.
 
 Logged-in users are not impacted.  Only guests & bots are.
 
-WARTT does not allow you to block specific ASNs, countries or IP ranges.  Update your .htaccess for that.  Instead, WARTT tracks activity for all potential ASNs, and will take actions on the problem ones.  It doesn't know in advance which one is going to be a problem - it observes activity & accumulates the stats to determine that.
+WARTT does not allow you to block specific ASNs, countries or IP ranges.  Update your .htaccess for that.  
 
-I.e., you don't tell WARTT what to block.  You tell WARTT what it should be looking at, e.g., ASNs, and if it identifies a problem ASN due to a threshold being exceeded, it can automatically block that.
+Instead, you tell WARTT what it should be looking at, e.g., ASNs, and if it identifies a problem ASN due to a threshold being exceeded, it can automatically block that.
 
 The threshold check works both ways: when traffic falls back below the threshold, the block is lifted.
 
