@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<!DOCTYPE package-info SYSTEM "http://www.simplemachines.org/xml/package-info">
+<package-info xmlns="http://www.simplemachines.org/xml/package-info" xmlns:smf="http://www.simplemachines.org/">
+	<name>Web Access Real-Time Tracker</name>
+	<id>shawnb61:WARTT</id>
+	<version>0.9.4</version>
+	<type>modification</type>
+	<install for="2.1.7-2.1.99">
+		<readme type="file" parsebbc="true">readme.txt</readme> 
+		<require-dir name="Sources" destination="$boarddir"/>
+        <require-dir name="Themes" destination="$boarddir"/>
+		<database type="file">WARTTDBChanges.php</database>
+		<hook hook="integrate_admin_areas" function="wartt_admin_menu" file="$sourcedir/WARTTHooks.php" />
+		<modification>install_wartt_21.xml</modification>
+	</install>	
+	<uninstall for="2.1.7-2.1.99">
+		<modification reverse="true">install_wartt_21.xml</modification>
+		<hook hook="integrate_admin_areas" function="wartt_admin_menu" file="$sourcedir/WARTTHooks.php" reverse="true" />
+		<code type="file">WARTTDBUninstall.php</code>
+		<remove-file name="$sourcedir/WARTT.php" />
+		<remove-file name="$sourcedir/WARTTHooks.php" />
+		<remove-file name="$sourcedir/WARTTModel.php" />
+		<remove-file name="$themedir/WARTTMaint.template.php" />
+		<remove-file name="$themedir/languages/WARTT.english.php" />
+		<remove-file name="$themedir/css/wartt.css" />
+	</uninstall>
+</package-info>

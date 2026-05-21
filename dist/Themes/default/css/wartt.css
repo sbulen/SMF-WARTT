@@ -1,0 +1,23 @@
+/* Chunk it up a bit 1... */
+@media screen and (max-width: 880px) {
+	th.minutes, th.threshold, th.action_pct,
+	td.minutes, td.threshold, td.action_pct {
+		display: none;
+	}
+}
+
+/* Chunk it up a bit 2... */
+@media (max-width: 720px) {
+	th.minutes, th.threshold, th.action_pct, th.bucket_var,
+	td.minutes, td.threshold, td.action_pct, td.bucket_var {
+		display: none;
+	}
+}
+
+/* Chunk it up a bit 3... */
+@media (max-width: 480px) {
+	th.minutes, th.threshold, th.action_pct, th.bucket_var, th.bucket_type,
+	td.minutes, td.threshold, td.action_pct, td.bucket_var, td.bucket_type {
+		display: none;
+	}
+}
