@@ -838,7 +838,7 @@ function get_dbip_country($ip)
  */
 function clear_blocks()
 {
-	global $smcFunc;
+	global $smcFunc, $db_type;
 
 	// Do the deed...
 	$request = $smcFunc['db_query']('', '
@@ -847,11 +847,15 @@ function clear_blocks()
 	);
 
 	// MEMORY tables (wartt_blocks, wartt_counters) don't free up rows, even on truncate... Gotta ALTER them to force a rebuild...
-	$request = $smcFunc['db_query']('', '
-		ALTER TABLE {db_prefix}wartt_blocks
-		ENGINE=MEMORY',
-		array()
-	);
+	// Only honored on mysql, pg don't do that...
+	if ($db_type != 'postgresql')
+	{
+		$request = $smcFunc['db_query']('', '
+			ALTER TABLE {db_prefix}wartt_blocks
+			ENGINE=MEMORY',
+			array()
+		);
+	}
 }
 
 /**
@@ -879,7 +883,7 @@ function clear_log()
  */
 function clear_counters()
 {
-	global $smcFunc;
+	global $smcFunc, $db_type;
 
 	// Do the deed...
 	$request = $smcFunc['db_query']('', '
@@ -888,9 +892,13 @@ function clear_counters()
 	);
 
 	// MEMORY tables (wartt_blocks, wartt_counters) don't free up rows, even on truncate... Gotta ALTER them to force a rebuild...
-	$request = $smcFunc['db_query']('', '
-		ALTER TABLE {db_prefix}wartt_counters
-		ENGINE=MEMORY',
-		array()
-	);
+	// Only honored on mysql, pg don't do that...
+	if ($db_type != 'postgresql')
+	{
+		$request = $smcFunc['db_query']('', '
+			ALTER TABLE {db_prefix}wartt_counters
+			ENGINE=MEMORY',
+			array()
+		);
+	}
 }
