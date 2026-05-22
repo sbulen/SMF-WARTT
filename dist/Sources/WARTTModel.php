@@ -765,20 +765,23 @@ function get_dbip_asn($ip)
 
 	$ip_packed = inet_pton($ip);
 	$ip_len = strlen($ip_packed);
+	$ip_hex = '';
+	for ($i = 0; $i < $ip_len; $i++)
+		$ip_hex .= substr( '00' . dechex(ord(substr($ip_packed, $i, 1))), -2);
 
 	if ($db_type == 'postgresql')
 		$sql = 'SELECT asn FROM {db_prefix}wala_dbip_asn
 		WHERE ip_from_packed <= {string:ip} AND ip_to_packed >= {string:ip}';
 	else
 		$sql = 'SELECT asn FROM {db_prefix}wala_dbip_asn
-		WHERE ip_from_packed <= {string:ipp} AND ip_to_packed >= {string:ipp} AND LENGTH(ip_from_packed) = {int:len}';
+		WHERE ip_from_packed <= UNHEX({string:iph}) AND ip_to_packed >= UNHEX({string:iph}) AND LENGTH(ip_from_packed) = {int:len}';
 
 	// Skip errors in case we've done something dumb like deinstall WALA after making configs look at it...
 	$asn = false;
 	$request = $smcFunc['db_query']('', $sql,
 		array(
 			'ip' => $ip,
-			'ipp' => $ip_packed,
+			'iph' => $ip_hex,
 			'len' => $ip_len,
 			'db_error_skip' => true,
 		)
@@ -806,20 +809,23 @@ function get_dbip_country($ip)
 
 	$ip_packed = inet_pton($ip);
 	$ip_len = strlen($ip_packed);
+	$ip_hex = '';
+	for ($i = 0; $i < $ip_len; $i++)
+		$ip_hex .= substr( '00' . dechex(ord(substr($ip_packed, $i, 1))), -2);
 
 	if ($db_type == 'postgresql')
 		$sql = 'SELECT country FROM {db_prefix}wala_dbip_country
 		WHERE ip_from_packed <= {string:ip} AND ip_to_packed >= {string:ip}';
 	else
 		$sql = 'SELECT country FROM {db_prefix}wala_dbip_country
-		WHERE ip_from_packed <= {string:ipp} AND ip_to_packed >= {string:ipp} AND LENGTH(ip_from_packed) = {int:len}';
+		WHERE ip_from_packed <= UNHEX({string:iph}) AND ip_to_packed >= UNHEX({string:iph}) AND LENGTH(ip_from_packed) = {int:len}';
 
 	// Skip errors in case we've done something dumb like deinstall WALA after making configs look at it...
 	$country = false;
 	$request = $smcFunc['db_query']('', $sql,
 		array(
 			'ip' => $ip,
-			'ipp' => $ip_packed,
+			'iph' => $ip_hex,
 			'len' => $ip_len,
 			'db_error_skip' => true,
 		)

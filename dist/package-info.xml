@@ -3,7 +3,7 @@
 <package-info xmlns="http://www.simplemachines.org/xml/package-info" xmlns:smf="http://www.simplemachines.org/">
 	<name>Web Access Real-Time Tracker</name>
 	<id>shawnb61:WARTT</id>
-	<version>0.9.4</version>
+	<version>0.9.5</version>
 	<type>modification</type>
 	<install for="2.1.7-2.1.99">
 		<readme type="file" parsebbc="true">readme.txt</readme> 
