@@ -765,16 +765,25 @@ function get_dbip_asn($ip)
 
 	$ip_packed = inet_pton($ip);
 	$ip_len = strlen($ip_packed);
-	$ip_hex = '';
+	$ip_hex = '0x';
 	for ($i = 0; $i < $ip_len; $i++)
 		$ip_hex .= substr( '00' . dechex(ord(substr($ip_packed, $i, 1))), -2);
 
+	// Lots of careful testing got this to run quickly...
+	// LIMIT 1 hard requirement, lets it know it can stop when it finds one...
+	// ORDER BY DESC requirement, speeds it up a lot...  Both pg & mysql...
 	if ($db_type == 'postgresql')
 		$sql = 'SELECT asn FROM {db_prefix}wala_dbip_asn
-		WHERE ip_from_packed <= {string:ip} AND ip_to_packed >= {string:ip}';
+		WHERE {string:ip} BETWEEN ip_from_packed AND ip_to_packed
+		ORDER BY ip_from_packed DESC
+		LIMIT 1';
 	else
+		// LENGTH required, because mysql intersperses ipv4 & ipv6; dewey decimal sort...
 		$sql = 'SELECT asn FROM {db_prefix}wala_dbip_asn
-		WHERE ip_from_packed <= UNHEX({string:iph}) AND ip_to_packed >= UNHEX({string:iph}) AND LENGTH(ip_from_packed) = {int:len}';
+		WHERE {raw:iph} BETWEEN ip_from_packed AND ip_to_packed
+		AND LENGTH(ip_from_packed) = {int:len}
+		ORDER BY ip_from_packed DESC
+		LIMIT 1';
 
 	// Skip errors in case we've done something dumb like deinstall WALA after making configs look at it...
 	$asn = false;
@@ -809,16 +818,25 @@ function get_dbip_country($ip)
 
 	$ip_packed = inet_pton($ip);
 	$ip_len = strlen($ip_packed);
-	$ip_hex = '';
+	$ip_hex = '0x';
 	for ($i = 0; $i < $ip_len; $i++)
 		$ip_hex .= substr( '00' . dechex(ord(substr($ip_packed, $i, 1))), -2);
 
+	// Lots of careful testing got this to run quickly...
+	// LIMIT 1 hard requirement, lets it know it can stop when it finds one...
+	// ORDER BY DESC requirement, speeds it up a lot...  Both pg & mysql...
 	if ($db_type == 'postgresql')
 		$sql = 'SELECT country FROM {db_prefix}wala_dbip_country
-		WHERE ip_from_packed <= {string:ip} AND ip_to_packed >= {string:ip}';
+		WHERE {string:ip} BETWEEN ip_from_packed AND ip_to_packed
+		ORDER BY ip_from_packed DESC
+		LIMIT 1';
 	else
+		// LENGTH required, because mysql intersperses ipv4 & ipv6; dewey decimal sort...
 		$sql = 'SELECT country FROM {db_prefix}wala_dbip_country
-		WHERE ip_from_packed <= UNHEX({string:iph}) AND ip_to_packed >= UNHEX({string:iph}) AND LENGTH(ip_from_packed) = {int:len}';
+		WHERE {raw:iph} BETWEEN ip_from_packed AND ip_to_packed
+		AND LENGTH(ip_from_packed) = {int:len}
+		ORDER BY ip_from_packed DESC
+		LIMIT 1';
 
 	// Skip errors in case we've done something dumb like deinstall WALA after making configs look at it...
 	$country = false;

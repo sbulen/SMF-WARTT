@@ -2,7 +2,7 @@
 <!DOCTYPE modification SYSTEM "http://www.simplemachines.org/xml/modification">
 <modification xmlns="http://www.simplemachines.org/xml/modification" xmlns:smf="http://www.simplemachines.org/">
 	<id>shawnb61:WARTT</id>
-	<version>1.0.0</version>
+	<version>1.0.1</version>
 	<file name="$boarddir/index.php">
 		<operation>
 			<search position="replace"><![CDATA[// Start the session. (assuming it hasn't already been.)
