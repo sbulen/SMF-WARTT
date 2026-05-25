@@ -132,7 +132,7 @@ function wartt_bucket_value($rule)
 	if (empty($modSettings['wartt_ipv4_masklen']))
 		$modSettings['wartt_ipv4_masklen'] = 24;
 	if (empty($modSettings['wartt_ipv6_masklen']))
-		$modSettings['wartt_ipv6_masklen'] = 96;
+		$modSettings['wartt_ipv6_masklen'] = 112;
 
 	// return false if you can't find anything...
 	$bucket = false;
@@ -1206,7 +1206,7 @@ function wartt_settings()
 		if (!isset($modSettings['wartt_ipv4_masklen']))
 			$modSettings['wartt_ipv4_masklen'] = 24;
 		if (!isset($modSettings['wartt_ipv6_masklen']))
-			$modSettings['wartt_ipv6_masklen'] = 96;
+			$modSettings['wartt_ipv6_masklen'] = 112;
 
 		// Setup the data entry form
 		$context['settings_title'] = $txt['wartt_settings'];
