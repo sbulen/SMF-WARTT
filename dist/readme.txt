@@ -49,3 +49,4 @@ Guidance:
 [b]Releases:[/b]
  - v1.0.0 Initial Commit
  - v1.0.1 Some query tuning
+ - v1.0.2 Use hook

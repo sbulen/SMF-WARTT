@@ -26,6 +26,28 @@ if (!defined('SMF')) {
 
 /**
  *
+ * Hook function - Do the check before session processing.
+ *
+ * Hook: integrate_load_session
+ *
+ * @return null
+ *
+ */
+function wartt_load_session()
+{
+	global $modSettings, $sourcedir;
+
+	// WARTT threshold checks - do before session gets started...
+	$warttfile = $sourcedir . '/WARTT.php';
+	if (!empty($modSettings['wartt_enabled']))
+	{
+		require_once $warttfile;
+		wartt_check_thresholds();
+	}
+}
+
+/**
+ *
  * Hook function - Add admin menu functions.
  *
  * Hook: integrate_admin_areas
