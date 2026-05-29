@@ -574,7 +574,7 @@ function wartt_counters()
 		clear_counters();
 	}
 
-	// This is all the information required for an rss channel listing.
+	// This is all the information required for the counter list.
 	require_once($sourcedir . '/Subs-List.php');
 	$listOptions = array(
 		'id' => 'wartt_counters_list',
@@ -736,7 +736,7 @@ function wartt_rules()
 		toggle_enabled_state(array_unique($_POST['selection']));
 	}
 
-	// This is all the information required for an rss channel listing.
+	// This is all the information required for the rule list.
 	require_once($sourcedir . '/Subs-List.php');
 	$listOptions = array(
 		'id' => 'wartt_rule_list',
