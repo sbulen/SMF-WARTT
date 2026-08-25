@@ -1,4 +1,5 @@
 <?php
+
 /**
  *	Main logic for the WARTT mod for SMF..
  *
@@ -77,7 +78,6 @@ function wartt_check_thresholds()
 				$curr_state = 1;
 				add_wartt_block($rule['id_rule'], $bucket, $rule['bucket_type']);
 				wartt_log_entry($rule['id_rule'], $rule['bucket_type'], $txt['wartt_activated'] . ' ' . $bucket);
-
 			}
 			else
 			{
@@ -140,17 +140,36 @@ function wartt_bucket_value($rule)
 	{
 		// IP mask...
 		case 'ip_mask':
+			// Convert the IP address to its binary representation.
 			$ip = inet_pton($_SERVER['REMOTE_ADDR']);
-			$masklen = strlen($ip) == 4 ? $modSettings['wartt_ipv4_masklen'] : $modSettings['wartt_ipv6_masklen'];
+
+			if ($ip === false)
+				return false;
+
+			// Determine the address size and select the appropriate prefix length.
 			$bits = strlen($ip) * 8;
-			$masklen = min($masklen, $bits);
-			$bin_mask = str_repeat('1', $masklen) . str_repeat('0', $bits - $masklen);
-			$bin_chunks = str_split($bin_mask, 8);
-			$mask = '';
-			foreach ($bin_chunks as $chunk)
-				$mask .= chr(bindec($chunk));
-			$bucket_n = $ip & $mask;
-			$bucket = inet_ntop($bucket_n) . '/' . $masklen;
+			$masklen = min($bits, $bits === 32 ? $modSettings['wartt_ipv4_masklen'] : $modSettings['wartt_ipv6_masklen']);
+
+			// Build the mask a byte at a time instead of constructing a string of
+			// individual '1' and '0' characters and converting each byte with bindec().
+			$full_bytes = intdiv($masklen, 8);
+			$remaining_bits = $masklen % 8;
+
+			// Each complete prefix byte is 0xff.
+			$mask = str_repeat("\xff", $full_bytes);
+
+			// Add the partially masked byte if the prefix does not end on a
+			// byte boundary.  The & 0xff keeps the value within chr()'s byte range.
+			if ($remaining_bits)
+				$mask .= chr((0xff << (8 - $remaining_bits)) & 0xff);
+
+			// Fill the remaining bytes with zeroes.
+			$mask .= str_repeat("\0", strlen($ip) - strlen($mask));
+
+			// Apply the mask to the IP and convert the resulting network address
+			// back to its printable form.
+			$bucket = inet_ntop($ip & $mask) . '/' . $masklen;
+
 			break;
 		// Server var...
 		case 'server_var':
