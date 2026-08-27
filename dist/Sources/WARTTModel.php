@@ -61,16 +61,35 @@ function get_enabled_wartt_rules()
  */
 function incr_wartt_counter($time_bucket, $id_rule, $ip_bucket, $bucket_type)
 {
-	global $smcFunc, $db_type;
+	global $smcFunc, $db_type, $modSettings;
+
+	// Are we incrementing crawl_target_requests?
+	if (empty($modSettings['wartt_crawl_target_def'])) {
+		$crawl_target = 0;
+	} else {
+		$ua_array = explode(',', $modSettings['wartt_crawl_target_def']);
+		$ua_regex = '~' . build_regex($ua_array, '~') . '~';
+		if (preg_match($ua_regex, $_SERVER['REQUEST_URI']) === 1) {
+			$crawl_target = 1;
+		} else {
+			$crawl_target = 0;
+		}
+	}
 
 	if ($db_type == 'postgresql')
-		$sql = 'INSERT INTO {db_prefix}wartt_counters (time_bucket, id_rule, ip_bucket, bucket_type, requests)
-		VALUES ({int:time_bucket}, {int:rule}, {string:ip_bucket}, {string:bucket_type}, 1)
-		ON CONFLICT ON CONSTRAINT {db_prefix}wartt_counters_pkey DO UPDATE SET requests = {db_prefix}wartt_counters.requests + 1';
+		$sql = 'INSERT INTO {db_prefix}wartt_counters (time_bucket, id_rule, ip_bucket, bucket_type, requests, crawl_target_requests)
+		VALUES ({int:time_bucket}, {int:rule}, {string:ip_bucket}, {string:bucket_type}, 1, {int:crawl_target})
+			ON CONFLICT ON CONSTRAINT {db_prefix}wartt_counters_pkey
+				DO UPDATE
+					SET requests = {db_prefix}wartt_counters.requests + 1,
+					crawl_target_requests = {db_prefix}wartt_counters.crawl_target_requests + {int:crawl_target}';
 	else
-		$sql = 'INSERT INTO {db_prefix}wartt_counters (time_bucket, id_rule, ip_bucket, bucket_type, requests)
-		VALUES ({int:time_bucket}, {int:rule}, {string:ip_bucket}, {string:bucket_type}, 1)
-		ON DUPLICATE KEY UPDATE requests = requests + 1';
+		$sql = 'INSERT INTO {db_prefix}wartt_counters (time_bucket, id_rule, ip_bucket, bucket_type, requests, crawl_target_requests)
+		VALUES ({int:time_bucket}, {int:rule}, {string:ip_bucket}, {string:bucket_type}, 1, {int:crawl_target})
+			ON DUPLICATE KEY
+				UPDATE
+					requests = requests + 1,
+					crawl_target_requests = crawl_target_requests + {int:crawl_target}';
 
 	$request = $smcFunc['db_query']('', $sql,
 		array(
@@ -78,6 +97,7 @@ function incr_wartt_counter($time_bucket, $id_rule, $ip_bucket, $bucket_type)
 			'rule' => $id_rule,
 			'ip_bucket' => $ip_bucket,
 			'bucket_type' => $bucket_type,
+			'crawl_target' => $crawl_target,
 		)
 	);
 }
@@ -88,18 +108,19 @@ function incr_wartt_counter($time_bucket, $id_rule, $ip_bucket, $bucket_type)
  * @param int id_rule
  * @param string ip_bucket
  * @param int minutes
+ * @param string bucket_type
  *
  * @return int
  *
  */
-function check_wartt_threshold($id_rule, $ip_bucket, $minutes)
+function check_wartt_threshold($id_rule, $ip_bucket, $minutes, $bucket_type)
 {
-	global $smcFunc;
+	global $smcFunc, $modSettings;
 
 	$cutoff = time() - $minutes * 60;
 
 	$request = $smcFunc['db_query']('', '
-		SELECT SUM(requests) AS requests
+		SELECT SUM(requests) AS requests, SUM(crawl_target_requests) AS crawl_target_requests
 		FROM {db_prefix}wartt_counters
 		WHERE id_rule = {int:rule} AND ip_bucket = {string:bucket} AND time_bucket >= {int:cutoff}',
 		array(
@@ -111,10 +132,21 @@ function check_wartt_threshold($id_rule, $ip_bucket, $minutes)
 	$check = $smcFunc['db_fetch_assoc']($request);
 	$smcFunc['db_free_result']($request);
 
-	if (empty($check))
+	// Although usually called right after incrementing requests, this function is also called from Scheduled Tasks, i.e., there 
+	// may be nothing at all there...  Gotta handle a return value of NULL or 0...
+	if (empty($check) || empty($check['requests']))
 		return 0;
-	else
-		return $check['requests'];
+	else {
+		if ($bucket_type == 'crawl_tgt') {
+			if ($check['crawl_target_requests']/$check['requests'] < $modSettings['wartt_crawl_target_pct']/100) {
+				return 0;
+			} else {
+				return $check['crawl_target_requests'];
+			}
+		} else {
+			return $check['requests'];
+		}
+	}
 }
 
 /**
@@ -253,7 +285,7 @@ function check_table_maint()
 
 	// Default to 2 hours for counter retention
 	if (empty($modSettings['wartt_counter_ret_mins']))
-		$counter_retention = 120;
+		$counter_retention = 240;
 	else
 		$counter_retention = (int) $modSettings['wartt_counter_ret_mins'];
 
@@ -305,7 +337,7 @@ function check_table_maint()
 
 		// Check the threshold
 		if (!empty($rule))
-			$count = check_wartt_threshold($active_block['id_rule'], $active_block['ip_bucket'], $rule['minutes']);
+			$count = check_wartt_threshold($active_block['id_rule'], $active_block['ip_bucket'], $rule['minutes'], $rule['bucket_type']);
 
 		// If threshold not met, or rule deleted or disabled, inactivate the block
 		if (empty($rule) || ($count < $rule['threshold']) || empty($rule['enabled']))
@@ -466,7 +498,7 @@ function get_counters_info($start = 0, $limit = 0, $sort = 'time_bucket DESC')
 	$counter_info = array();
 
 	$request = $smcFunc['db_query']('', '
-		SELECT time_bucket, id_rule, bucket_type, ip_bucket, requests
+		SELECT time_bucket, id_rule, bucket_type, ip_bucket, requests, crawl_target_requests
 		FROM {db_prefix}wartt_counters
 		ORDER BY {raw:sort}' .
 		(empty($limit) ? '' : ' LIMIT {int:limit}' . (empty($start) ? '' : ' OFFSET {int:start}')),

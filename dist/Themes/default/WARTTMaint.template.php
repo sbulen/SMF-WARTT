@@ -56,6 +56,7 @@ function template_add_rule()
 					<dd>
 						<select name="bucket_type">
 							<option value="ip_mask"', ($context['wartt_rule_info']['bucket_type'] == 'ip_mask' ? ' selected' : ''), '>', $txt['wartt_btdesc_ipmask'], '</option>
+							<option value="crawl_tgt"', ($context['wartt_rule_info']['bucket_type'] == 'crawl_tgt' ? ' selected' : ''), '>', $txt['wartt_btdesc_crawl_tgt'], '</option>
 							<option value="server_var"', ($context['wartt_rule_info']['bucket_type'] == 'server_var' ? ' selected' : ''), '>', $txt['wartt_btdesc_servervar'], '</option>
 							<option value="env_var"', ($context['wartt_rule_info']['bucket_type'] == 'env_var' ? ' selected' : ''), '>', $txt['wartt_btdesc_envvar'], '</option>';
 
@@ -88,7 +89,7 @@ function template_add_rule()
 						<span class="smalltext">', $txt['wartt_desc_minutes'], '</span>
 					</dt>
 					<dd>
-						<input type="number" name="minutes" value="', $context['wartt_rule_info']['minutes'], '" min="1" max="480" required>
+						<input type="number" name="minutes" value="', $context['wartt_rule_info']['minutes'], '" min="1" max="240" required>
 					</dd>';
 
 	// Threshold.
@@ -98,7 +99,7 @@ function template_add_rule()
 						<span class="smalltext">', $txt['wartt_desc_threshold'], '</span>
 					</dt>
 					<dd>
-						<input type="number" name="threshold" value="', $context['wartt_rule_info']['threshold'], '" min="10" max="20000" required>
+						<input type="number" name="threshold" style="width: 70px;" value="', $context['wartt_rule_info']['threshold'], '" min="10" max="20000" required>
 					</dd>';
 
 	// Action.
@@ -195,6 +196,7 @@ function template_mod_rule()
 					<dd>
 						<select name="bucket_type">
 							<option value="ip_mask"', ($context['wartt_rule_info']['bucket_type'] == 'ip_mask' ? ' selected' : ''), '>', $txt['wartt_btdesc_ipmask'], '</option>
+							<option value="crawl_tgt"', ($context['wartt_rule_info']['bucket_type'] == 'crawl_tgt' ? ' selected' : ''), '>', $txt['wartt_btdesc_crawl_tgt'], '</option>
 							<option value="server_var"', ($context['wartt_rule_info']['bucket_type'] == 'server_var' ? ' selected' : ''), '>', $txt['wartt_btdesc_servervar'], '</option>
 							<option value="env_var"', ($context['wartt_rule_info']['bucket_type'] == 'env_var' ? ' selected' : ''), '>', $txt['wartt_btdesc_envvar'], '</option>';
 
@@ -227,7 +229,7 @@ function template_mod_rule()
 						<span class="smalltext">', $txt['wartt_desc_minutes'], '</span>
 					</dt>
 					<dd>
-						<input type="number" name="minutes" value="', $context['wartt_rule_info']['minutes'], '" min="1" max="480" required>
+						<input type="number" name="minutes" value="', $context['wartt_rule_info']['minutes'], '" min="1" max="240" required>
 					</dd>';
 
 	// Threshold.
@@ -237,7 +239,7 @@ function template_mod_rule()
 						<span class="smalltext">', $txt['wartt_desc_threshold'], '</span>
 					</dt>
 					<dd>
-						<input type="number" name="threshold" value="', $context['wartt_rule_info']['threshold'], '" min="10" max="20000" required>
+						<input type="number" name="threshold" style="width: 70px;" value="', $context['wartt_rule_info']['threshold'], '" min="10" max="20000" required>
 					</dd>';
 
 	// Action.

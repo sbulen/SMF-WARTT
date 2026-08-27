@@ -40,6 +40,12 @@ $create_tables = array(
 				'default' => 0,
 				'not_null' => true,
 			),
+		    array(
+			   'name' => 'crawl_target_requests',
+				'type' => 'int',
+				'default' => 0,
+				'not_null' => true,
+			),
 		),
 		'indexes' => array(),
 		'options' => array(
@@ -245,8 +251,21 @@ if (!in_array($db_prefix . 'wartt_counters', $tables))
 	array('db_error_skip' => true));
 }
 
-// Finally, add the scheduled task...
+// Add the scheduled task...
 $smcFunc['db_insert']('ignore', '{db_prefix}scheduled_tasks',
 	array('time_offset' => 'int', 'time_regularity' => 'int', 'time_unit' => 'string', 'disabled' => 'int', 'task' => 'string', 'callable' => 'string'),
 	array(1020, 4, 'h', 0, 'check_wartt_table_maint', '$sourcedir/WARTTModel.php|check_table_maint'),
 	array('task'));
+
+// Add some default settings
+$smcFunc['db_insert']('ignore', '{db_prefix}settings',
+	array('variable' => 'string', 'value' => 'string'),
+	array(
+		array('wartt_counter_ret_mins', 240),
+		array('wartt_log_ret_months', 2),
+		array('wartt_ipv4_masklen', 24),
+		array('wartt_ipv6_masklen', 112),
+		array('wartt_crawl_target_pct', 98),
+		array('wartt_crawl_target_def', 'topic=,board=,msg=,SELECT,CONCAT,UNION'),
+	),
+	array('variable'));

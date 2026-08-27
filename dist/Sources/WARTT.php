@@ -1,5 +1,4 @@
 <?php
-
 /**
  *	Main logic for the WARTT mod for SMF..
  *
@@ -54,6 +53,10 @@ function wartt_check_thresholds()
 	if (!empty($_COOKIE[$cookiename]))
 		return;
 
+	// Check useragent whitelist...
+	if (ua_whitelisted())
+		return;
+
 	require_once($sourcedir . '/WARTTModel.php');
 	loadLanguage('WARTT');
 
@@ -63,10 +66,10 @@ function wartt_check_thresholds()
 	foreach ($rules AS $rule)
 	{
 		$bucket = wartt_bucket_value($rule);
-		if ($bucket == false)
+		if ($bucket === false)
 			continue;
 		incr_wartt_counter($minute, $rule['id_rule'], $bucket, $rule['bucket_type']);
-		$threshold = check_wartt_threshold($rule['id_rule'], $bucket, $rule['minutes']);
+		$threshold = check_wartt_threshold($rule['id_rule'], $bucket, $rule['minutes'], $rule['bucket_type']);
 
 		// Detect changes in state - rules changing from active to inactive or vice-versa...
 		$curr_state = check_wartt_block($rule['id_rule'], $bucket);
@@ -110,6 +113,31 @@ function wartt_check_thresholds()
 }
 
 /**
+ * ua_whitelisted - helper function.
+ *
+ * Function to check if useragent is in whitelist
+ *
+ * @return bool true if whitelisted, false if not
+ *
+ */
+function ua_whitelisted()
+{
+	global $modSettings;
+
+	if (empty($modSettings['wartt_whitelist_useragent']))
+		return false;
+
+	$ua_array = explode(',', $modSettings['wartt_whitelist_useragent']);
+	$ua_regex = '~' . build_regex($ua_array, '~') . '~';
+
+	if (preg_match($ua_regex, $_SERVER['HTTP_USER_AGENT']) === 1) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
  * wartt_bucket_value - determine which bucket to use.  Helper function.
  *
  * Bucket Types:
@@ -131,15 +159,18 @@ function wartt_bucket_value($rule)
 	// Give reasonable defaults for these...
 	if (empty($modSettings['wartt_ipv4_masklen']))
 		$modSettings['wartt_ipv4_masklen'] = 24;
-	if (empty($modSettings['wartt_ipv6_masklen']))
-		$modSettings['wartt_ipv6_masklen'] = 112;
+	if (empty($modSettings['wartt_whitelist_asn']))
+		$modSettings['wartt_whitelist_asn'] = '';
+	if (empty($modSettings['wartt_whitelist_country']))
+		$modSettings['wartt_whitelist_country'] = '';
 
 	// return false if you can't find anything...
 	$bucket = false;
 	switch ($rule['bucket_type'])
 	{
-		// IP mask...
+		// IP masks...
 		case 'ip_mask':
+		case 'crawl_tgt':
 			// Convert the IP address to its binary representation.
 			$ip = inet_pton($_SERVER['REMOTE_ADDR']);
 
@@ -173,25 +204,55 @@ function wartt_bucket_value($rule)
 			break;
 		// Server var...
 		case 'server_var':
-			if (!empty($_SERVER[$rule['bucket_var']]))
-			{
+			if (!empty($_SERVER[$rule['bucket_var']])) {
 				$bucket = $_SERVER[$rule['bucket_var']];
+			}
+			// Check whitelists...
+			if (preg_match('~^[A-Z]{2}$~', $bucket) === 1) {
+				$whitelist_cos = explode(',', $modSettings['wartt_whitelist_country']);
+				if (in_array($bucket, $whitelist_cos))
+					return false;
+			} elseif (preg_match('~^\d{1,6}$~', $bucket) === 1) {
+				$whitelist_asns = explode(',', $modSettings['wartt_whitelist_asn']);
+				if (in_array($bucket, $whitelist_asns))
+					return false;
 			}
 			break;
 		// Env var...
 		case 'env_var':
-			if (!empty($_ENV[$rule['bucket_var']]))
-			{
+			if (!empty($_ENV[$rule['bucket_var']])) {
 				$bucket = $_ENV[$rule['bucket_var']];
+			}
+			// Check whitelists...
+			if (preg_match('~^[A-Z]{2}$~', $bucket) === 1) {
+				$whitelist_cos = explode(',', $modSettings['wartt_whitelist_country']);
+				if (in_array($bucket, $whitelist_cos))
+					return false;
+			} elseif (preg_match('~^\d{1,6}$~', $bucket) === 1) {
+				$whitelist_asns = explode(',', $modSettings['wartt_whitelist_asn']);
+				if (in_array($bucket, $whitelist_asns))
+					return false;
 			}
 			break;
 		// ASN lookup...
 		case 'asn_lookup':
 			$bucket = get_dbip_asn($_SERVER['REMOTE_ADDR']);
+			// Check whitelist...
+			if ($bucket !== false) {
+				$whitelist_asns = explode(',', $modSettings['wartt_whitelist_asn']);
+				if (in_array($bucket, $whitelist_asns))
+					return false;
+			}
 			break;
 		// COUNTRY lookup...
 		case 'co_lookup':
 			$bucket = get_dbip_country($_SERVER['REMOTE_ADDR']);
+			// Check whitelist...
+			if ($bucket !== false) {
+				$whitelist_cos = explode(',', $modSettings['wartt_whitelist_country']);
+				if (in_array($bucket, $whitelist_cos))
+					return false;
+			}
 			break;
 	}
 
@@ -682,6 +743,20 @@ function wartt_counters()
 				'sort' => array(
 					'default' => 'requests',
 					'reverse' => 'requests DESC',
+				),
+			),
+			'crawl_target_requests' => array(
+				'header' => array(
+					'value' => $txt['wartt_crawl_target_requests'],
+					'class' => 'lefttext',
+				),
+				'data' => array(
+					'db' => 'crawl_target_requests',
+					'class' => 'smalltext',
+				),
+				'sort' => array(
+					'default' => 'crawl_target_requests',
+					'reverse' => 'crawl_target_requests DESC',
 				),
 			),
 		),
@@ -1219,7 +1294,7 @@ function wartt_settings()
 		if (!isset($modSettings['wartt_enabled']))
 			$modSettings['wartt_enabled'] = 0;
 		if (!isset($modSettings['wartt_counter_ret_mins']))
-			$modSettings['wartt_counter_ret_mins'] = 120;
+			$modSettings['wartt_counter_ret_mins'] = 240;
 		if (!isset($modSettings['wartt_log_ret_months']))
 			$modSettings['wartt_log_ret_months'] = 2;
 		if (!isset($modSettings['wartt_ipv4_masklen']))
@@ -1236,13 +1311,14 @@ function wartt_settings()
 			array('int',
 				'wartt_counter_ret_mins',
 				'min' => 2,
-				'max' => 480,
+				'max' => 240,
 			),
 			array('int',
 				'wartt_log_ret_months',
 				'min' => 1,
 				'max' => 24,
 			),
+			'',
 			array('int',
 				'wartt_ipv4_masklen',
 				'min' => 8,
@@ -1253,13 +1329,136 @@ function wartt_settings()
 				'min' => 32,
 				'max' => 128,
 			),
+			'',
+			array('int',
+				'wartt_crawl_target_pct',
+				'min' => 0,
+				'max' => 100,
+			),
+			array('text',
+				'wartt_crawl_target_def',
+				'size' => 64,
+			),
+			'',
+			array('large_text',
+				'wartt_whitelist_country',
+			),
+			array('large_text',
+				'wartt_whitelist_asn',
+			),
+			array('large_text',
+				'wartt_whitelist_useragent',
+			),
 		);
 
 		if (isset($_GET['save'])) {
 			checkSession();
+
+			$_POST['wartt_whitelist_country'] = clean_co_whitelist($_POST['wartt_whitelist_country']);
+			$_POST['wartt_whitelist_asn'] = clean_asn_whitelist($_POST['wartt_whitelist_asn']);
+			$_POST['wartt_whitelist_useragent'] = clean_ua_whitelist($_POST['wartt_whitelist_useragent']);
+
 			saveDBSettings($config_vars);
 			redirectexit('action=admin;area=wartt;sa=wartt_settings');
 		}
 
 		prepareDBSettingContext($config_vars);
+}
+
+/**
+ * clean_co_whitelist - helper function.
+ *
+ * Function to clean up whitelist - countries
+ *
+ * @whitelist string
+ *
+ * @return string
+ *
+ */
+function clean_co_whitelist($whitelist)
+{
+	$clean_whitelist = '';
+
+	if (empty($whitelist))
+		return '';
+
+	$whitelist = strtoupper($whitelist);
+
+	// Make sure all the elements requested look valid
+	$countries = array();
+	$split = explode(',', $whitelist);
+	foreach ($split as $entry) {
+		$entry = trim($entry);
+		if (preg_match('~^[A-Z]{2}$~', $entry) === 1) {
+			$countries[] = $entry;
+		}
+	}
+	$countries = array_unique($countries);
+	$clean_whitelist = implode(',', $countries);
+
+	return $clean_whitelist;
+}
+
+/**
+ * clean_asn_whitelist - helper function.
+ *
+ * Function to clean up whitelist - ASNs
+ *
+ * @whitelist string
+ *
+ * @return string
+ *
+ */
+function clean_asn_whitelist($whitelist)
+{
+	$clean_whitelist = '';
+
+	if (empty($whitelist))
+		return '';
+
+	// Make sure all the elements requested look valid
+	$asns = array();
+	$split = explode(',', $whitelist);
+	foreach ($split as $entry) {
+		$entry = trim($entry);
+		if (preg_match('~^\d{1,6}$~', $entry) === 1) {
+			$asns[] = (int) $entry;
+		}
+	}
+	$asns = array_unique($asns);
+	$clean_whitelist = implode(',', $asns);
+
+	return $clean_whitelist;
+}
+
+/**
+ * clean_ua_whitelist - helper function.
+ *
+ * Function to clean up whitelist - useragents
+ *
+ * @whitelist string
+ *
+ * @return string
+ *
+ */
+function clean_ua_whitelist($whitelist)
+{
+	$clean_whitelist = '';
+
+	if (empty($whitelist))
+		return '';
+
+	// Make sure all the elements requested look valid
+	$uas = array();
+	$split = explode(',', $whitelist);
+	foreach ($split as $entry) {
+		$entry = trim($entry);
+		if (preg_match("/^[A-Za-z0-9!#$%&'*+\-.\^_`|~]{2,50}$/", $entry) === 1) {
+			$uas[] = $entry;
+		}
+	}
+	$uas = array_unique($uas);
+	$clean_whitelist = implode(',', $uas);
+
+	return $clean_whitelist;
 }
