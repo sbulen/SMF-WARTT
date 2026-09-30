@@ -1311,7 +1311,7 @@ function wartt_settings()
 			array('int',
 				'wartt_counter_ret_mins',
 				'min' => 2,
-				'max' => 240,
+				'max' => 1440,
 			),
 			array('int',
 				'wartt_log_ret_months',

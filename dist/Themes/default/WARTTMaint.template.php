@@ -89,7 +89,7 @@ function template_add_rule()
 						<span class="smalltext">', $txt['wartt_desc_minutes'], '</span>
 					</dt>
 					<dd>
-						<input type="number" name="minutes" value="', $context['wartt_rule_info']['minutes'], '" min="1" max="240" required>
+						<input type="number" name="minutes" value="', $context['wartt_rule_info']['minutes'], '" min="1" max="1440" required>
 					</dd>';
 
 	// Threshold.
@@ -229,7 +229,7 @@ function template_mod_rule()
 						<span class="smalltext">', $txt['wartt_desc_minutes'], '</span>
 					</dt>
 					<dd>
-						<input type="number" name="minutes" value="', $context['wartt_rule_info']['minutes'], '" min="1" max="240" required>
+						<input type="number" name="minutes" value="', $context['wartt_rule_info']['minutes'], '" min="1" max="1440" required>
 					</dd>';
 
 	// Threshold.
