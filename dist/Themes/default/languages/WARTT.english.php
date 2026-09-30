@@ -57,7 +57,7 @@ $txt['wartt_crawl_target_pct'] = 'Crawl target percent - percent to meet crawl t
 $txt['wartt_crawl_target_def'] = 'Crawl target definition - request text to meet crawl target threshold';
 $txt['wartt_whitelist_country'] = 'Whitelist - 2-byte country codes to be excluded from country checks, no spaces, e.g., "US,CA"';
 $txt['wartt_whitelist_asn'] = 'Whitelist - ASNs to be excluded from ASN checks, no spaces, e.g., "396982,15169,8075"';
-$txt['wartt_whitelist_useragent'] = 'Whitelist - useragents to be excluded from all checks, case sensitive, no spaces, e.g., "Googlebot,bingbot,DuckAssistBot"';
+$txt['wartt_whitelist_useragent'] = 'Whitelist - useragents to be excluded from all checks, case sensitive, no spaces, e.g., "Googlebot,bingbot,DuckDuckBot"';
 
 // Buttons
 $txt['wartt_delrule'] = 'Delete';
