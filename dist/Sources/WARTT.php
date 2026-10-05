@@ -286,7 +286,7 @@ function strip_seconds($time)
  */
 function wartt_main()
 {
-	global $txt, $context, $sourcedir;
+	global $txt, $context, $sourcedir, $db_type;
 
 	// You have to be an admin to do this.
 	isAllowedTo('admin_forum');
@@ -306,6 +306,10 @@ function wartt_main()
 		'wartt_mod_rule' => 'wartt_mod_rule',
 		'wartt_settings' => 'wartt_settings',
 	);
+
+	// PG doesn't do MEMORY tables...
+	if ($db_type !== 'postgresql')
+		$subActions['wartt_mem_check'] = 'wartt_mem_check';
 
 	// This uses admin tabs
 	$context[$context['admin_menu_name']]['tab_data'] = array(
@@ -1461,4 +1465,145 @@ function clean_ua_whitelist($whitelist)
 	$clean_whitelist = implode(',', $uas);
 
 	return $clean_whitelist;
+}
+
+/**
+ * wartt_mem_check - Show how much memory is available for our memory tables...
+ *
+ * Action: admin
+ * Area: wartt
+ * Subaction: wartt_mem_check
+ *
+ * @return null
+ *
+ */
+function wartt_mem_check()
+{
+	global $txt, $context, $sourcedir, $scripturl, $modSettings, $db_type;
+
+	// You have to be an admin to do this.
+	isAllowedTo('admin_forum');
+
+	// Not for PG...
+	if ($db_type === 'postgresql')
+		redirectexit();
+
+	// Set up some basics....
+	$context['url_start'] = '?action=admin;area=wartt;sa=wartt_mem_check';
+	$context['page_title'] = $txt['wartt_mem_check'];
+
+	// The number of entries to show per page.
+	$context['displaypage'] = $modSettings['defaultMaxMembers'];
+
+	// This is all the information required for the block list.
+	require_once($sourcedir . '/Subs-List.php');
+	$listOptions = array(
+		'id' => 'wartt_mem_list',
+		'title' => $txt['wartt_mem_check'],
+		'width' => '100%',
+		'items_per_page' => $context['displaypage'],
+		'no_items_label' => $txt['wartt_no_entries_found'],
+		'base_href' => $scripturl . $context['url_start'],
+
+		'get_items' => array(
+			'function' => 'get_memory_info',
+			'params' => array(),
+		),
+		'get_count' => array(
+			'function' => 'get_memory_count',
+			'params' => array(),
+		),
+
+		'columns' => array(
+			'table_name' => array(
+				'header' => array(
+					'value' => $txt['wartt_table_name'],
+					'class' => 'lefttext',
+				),
+				'data' => array(
+					'db' => 'TABLE_NAME',
+					'class' => 'smalltext',
+				),
+				'sort' => array(
+					'default' => 'TABLE_NAME',
+					'reverse' => 'TABLE_NAME DESC',
+				),
+			),
+			'engine' => array(
+				'header' => array(
+					'value' => $txt['wartt_engine'],
+					'class' => 'lefttext',
+				),
+				'data' => array(
+					'db' => 'ENGINE',
+					'class' => 'smalltext',
+				),
+				'sort' => array(
+					'default' => 'ENGINE',
+					'reverse' => 'ENGINE DESC',
+				),
+			),
+			'table_size' => array(
+				'header' => array(
+					'value' => $txt['wartt_table_size'],
+					'class' => 'centertext',
+				),
+				'data' => array(
+					'db' => 'table_size',
+					'class' => 'centertext',
+				),
+				'sort' => array(
+					'default' => 'table_size',
+					'reverse' => 'table_size DESC',
+				),
+			),
+			'max_size' => array(
+				'header' => array(
+					'value' => $txt['wartt_max_size'],
+					'class' => 'centertext',
+				),
+				'data' => array(
+					'db' => 'max_size',
+					'class' => 'centertext',
+				),
+				'sort' => array(
+					'default' => 'max_size DESC',
+					'reverse' => 'max_size',
+				),
+			),
+			'percent_full' => array(
+				'header' => array(
+					'value' => $txt['wartt_percent_full'],
+					'class' => 'centertext',
+				),
+				'data' => array(
+					'db' => 'percent_full',
+					'class' => 'centertext',
+				),
+				'sort' => array(
+					'default' => 'percent_full DESC',
+					'reverse' => 'percent_full',
+				),
+			),
+		),
+		'form' => array(
+			'href' => $scripturl . $context['url_start'],
+			'include_sort' => false,
+			'include_start' => false,
+			'hidden_fields' => array(
+				$context['session_var'] => $context['session_id'],
+			),
+			'token' => 'wartt_mem_check',
+		),
+	);
+
+	createToken('wartt_mem_check');
+
+	// Create the block list.
+	createList($listOptions);
+
+	// The sub_template is defined in GenericList.template.php, which was invoked
+	// When createList() was called above.
+	$context['sub_template'] = 'show_list';
+	$context['default_list'] = 'wartt_mem_list';
 }

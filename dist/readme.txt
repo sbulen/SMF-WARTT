@@ -63,4 +63,4 @@ Note that good crawlers operate at relatively slow rates.  When configuring craw
  - v1.0.2 Use hook
  - v1.0.3 Improve cleanup of expired blocks
  - v1.0.4 Fix offset on null error
- - v1.1.0 Add new feature - crawl target threshold
+ - v1.1.0 Add new features - crawl target threshold; whitelists; memory usage view

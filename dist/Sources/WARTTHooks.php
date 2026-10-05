@@ -59,7 +59,7 @@ function wartt_load_session()
  */
 function wartt_admin_menu(&$menu)
 {
-	global $txt;
+	global $txt, $db_type;
 
 	loadLanguage('WARTT');
 
@@ -81,4 +81,9 @@ function wartt_admin_menu(&$menu)
 		    'wartt_settings' => array($txt['wartt_settings']),
 		),
 	);
+
+	// Entry for mysql only...
+	if ($db_type !== 'postgresql')
+		$menu['maintenance']['areas']['wartt']['subsections']['wartt_mem_check'] = array($txt['wartt_mem_check']);
+
 }

@@ -17,6 +17,7 @@ $txt['wartt_rules'] = 'Rules';
 $txt['wartt_add_rule'] = 'Add Rule';
 $txt['wartt_mod_rule'] = 'Modify Rule';
 $txt['wartt_settings'] = 'Settings';
+$txt['wartt_mem_check'] = 'Memory Usage';
 
 // Text labels
 $txt['wartt_id'] = 'Rule';
@@ -46,6 +47,13 @@ $txt['wartt_desc_threshold'] = 'How many site hits before taking action, 10 - 20
 $txt['wartt_desc_action'] = 'Log, Block, or change system setting';
 $txt['wartt_desc_actpct'] = 'Used when blocking only, to thin the herd, 0 - 100%';
 $txt['wartt_desc_rule_enabled'] = 'Enable or disable this rule as needed';
+
+// Memory table check info
+$txt['wartt_table_name'] = 'Table';
+$txt['wartt_engine'] = 'Engine';
+$txt['wartt_table_size'] = 'Table Size';
+$txt['wartt_max_size'] = 'Max Size';
+$txt['wartt_percent_full'] = 'Percent Full';
 
 // Settings
 $txt['wartt_enabled'] = 'WARTT enabled';

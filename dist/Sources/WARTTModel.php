@@ -985,3 +985,88 @@ function clear_counters()
 		);
 	}
 }
+
+/**
+ * get_memory_info - returns an array of info about our memory tables.
+ *
+ * @return array
+ *
+ */
+function get_memory_info()
+{
+	global $smcFunc, $txt, $db_name;
+
+	$table_info = array();
+
+	$request = $smcFunc['db_query']('', '
+		SELECT table_schema, table_name, engine, data_length AS table_size, @@max_heap_table_size AS max_size, ROUND((data_length / @@max_heap_table_size) * 100, 2) AS percent_full
+		FROM information_schema.tables
+		WHERE table_schema = {string:db_name}
+			AND table_name IN (\'{db_prefix}wartt_blocks\', \'{db_prefix}wartt_counters\')',
+		array(
+			'db_name' => $db_name,
+		)
+	);
+
+	while ($row = $smcFunc['db_fetch_assoc']($request))
+	{
+		$row['table_size'] = format_bkmg($row['table_size']);
+		$row['max_size'] = format_bkmg($row['max_size']);
+		$table_info[] = $row;
+	}
+	$smcFunc['db_free_result']($request);
+
+	return $table_info;
+}
+
+/**
+ * get_memory_count - returns the total count of memory tables.
+ *
+ * @return int
+ *
+ */
+function get_memory_count()
+{
+	// Fixed at 2 at this point.
+	return 2;
+}
+
+/**
+ * format_bkmg - format a number in bytes, KB, MB or GB.
+ *
+ * @param int $bytes
+ *
+ * @return string
+ *
+ */
+function format_bkmg($bytes)
+{
+	$bytes = (int) $bytes;
+
+	if ($bytes < 1024)
+	{
+		$num = $bytes;
+		$suffix = '';
+	}
+	elseif ($bytes < 1024**2)
+	{
+		$num = $bytes/1024;
+		$suffix = 'KB';
+	}
+	elseif ($bytes < 1024**3)
+	{
+		$num = $bytes/1024**2;
+		$suffix = 'MB';
+	}
+	elseif ($bytes < 1024**4)
+	{
+		$num = $bytes/1024**3;
+		$suffix = 'GB';
+	}
+	else
+	{
+		$num = $bytes/1024**4;
+		$suffix = 'TB';
+	}
+	return comma_format($num) . $suffix;
+}
