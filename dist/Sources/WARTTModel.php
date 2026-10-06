@@ -998,8 +998,9 @@ function get_memory_info()
 
 	$table_info = array();
 
+	// Note: using upper case col names improves compatibility across mysql & mariadb...
 	$request = $smcFunc['db_query']('', '
-		SELECT table_schema, table_name, engine, data_length AS table_size, @@max_heap_table_size AS max_size, ROUND((data_length / @@max_heap_table_size) * 100, 2) AS percent_full
+		SELECT TABLE_SCHEMA, TABLE_NAME, ENGINE, data_length AS table_size, @@max_heap_table_size AS max_size, ROUND((data_length / @@max_heap_table_size) * 100, 2) AS percent_full
 		FROM information_schema.tables
 		WHERE table_schema = {string:db_name}
 			AND table_name IN (\'{db_prefix}wartt_blocks\', \'{db_prefix}wartt_counters\')',
