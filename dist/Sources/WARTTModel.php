@@ -35,7 +35,7 @@ function get_enabled_wartt_rules()
 	global $smcFunc;
 
 	$request = $smcFunc['db_query']('', '
-		SELECT id_rule, bucket_type, bucket_var, minutes, threshold, action, action_pct, enabled
+		SELECT id_rule, description, bucket_cat, bucket_type, bucket_var, minutes, threshold, action, action_pct, enabled
 		FROM {db_prefix}wartt_rules
 		WHERE enabled = 1',
 		array(
@@ -52,14 +52,13 @@ function get_enabled_wartt_rules()
  * incr_wartt_counter - simple, just add 1.
  *
  * @param int time_bucket
- * @param int id_rule
+ * @param string bucket_cat
  * @param string ip_bucket, e.g., 'CN' (country) or '714' (asn)
- * @param string bucket_type
  *
  * @return void
  *
  */
-function incr_wartt_counter($time_bucket, $id_rule, $ip_bucket, $bucket_type)
+function incr_wartt_counter($time_bucket, $bucket_cat, $ip_bucket)
 {
 	global $smcFunc, $db_type, $modSettings;
 
@@ -77,15 +76,15 @@ function incr_wartt_counter($time_bucket, $id_rule, $ip_bucket, $bucket_type)
 	}
 
 	if ($db_type == 'postgresql')
-		$sql = 'INSERT INTO {db_prefix}wartt_counters (time_bucket, id_rule, ip_bucket, bucket_type, requests, crawl_target_requests)
-		VALUES ({int:time_bucket}, {int:rule}, {string:ip_bucket}, {string:bucket_type}, 1, {int:crawl_target})
+		$sql = 'INSERT INTO {db_prefix}wartt_counters (time_bucket, bucket_cat, ip_bucket, requests, crawl_target_requests)
+		VALUES ({int:time_bucket}, {string:bucket_cat}, {string:ip_bucket}, 1, {int:crawl_target})
 			ON CONFLICT ON CONSTRAINT {db_prefix}wartt_counters_pkey
 				DO UPDATE
 					SET requests = {db_prefix}wartt_counters.requests + 1,
 					crawl_target_requests = {db_prefix}wartt_counters.crawl_target_requests + {int:crawl_target}';
 	else
-		$sql = 'INSERT INTO {db_prefix}wartt_counters (time_bucket, id_rule, ip_bucket, bucket_type, requests, crawl_target_requests)
-		VALUES ({int:time_bucket}, {int:rule}, {string:ip_bucket}, {string:bucket_type}, 1, {int:crawl_target})
+		$sql = 'INSERT INTO {db_prefix}wartt_counters (time_bucket, bucket_cat, ip_bucket, requests, crawl_target_requests)
+		VALUES ({int:time_bucket}, {string:bucket_cat}, {string:ip_bucket}, 1, {int:crawl_target})
 			ON DUPLICATE KEY
 				UPDATE
 					requests = requests + 1,
@@ -94,9 +93,8 @@ function incr_wartt_counter($time_bucket, $id_rule, $ip_bucket, $bucket_type)
 	$request = $smcFunc['db_query']('', $sql,
 		array(
 			'time_bucket' => $time_bucket,
-			'rule' => $id_rule,
+			'bucket_cat' => $bucket_cat,
 			'ip_bucket' => $ip_bucket,
-			'bucket_type' => $bucket_type,
 			'crawl_target' => $crawl_target,
 		)
 	);
@@ -105,15 +103,15 @@ function incr_wartt_counter($time_bucket, $id_rule, $ip_bucket, $bucket_type)
 /**
  * check_wartt_threshold - for the rule in question, add up counters for the specified minutes.
  *
- * @param int id_rule
+ * @param string bucket_cat
  * @param string ip_bucket
- * @param int minutes
  * @param string bucket_type
+ * @param int minutes
  *
  * @return int
  *
  */
-function check_wartt_threshold($id_rule, $ip_bucket, $minutes, $bucket_type)
+function check_wartt_threshold($bucket_cat, $ip_bucket, $bucket_type, $minutes)
 {
 	global $smcFunc, $modSettings;
 
@@ -122,10 +120,10 @@ function check_wartt_threshold($id_rule, $ip_bucket, $minutes, $bucket_type)
 	$request = $smcFunc['db_query']('', '
 		SELECT SUM(requests) AS requests, SUM(crawl_target_requests) AS crawl_target_requests
 		FROM {db_prefix}wartt_counters
-		WHERE id_rule = {int:rule} AND ip_bucket = {string:bucket} AND time_bucket >= {int:cutoff}',
+		WHERE bucket_cat = {string:bucket_cat} AND ip_bucket = {string:ip_bucket} AND time_bucket >= {int:cutoff}',
 		array(
-			'rule' => $id_rule,
-			'bucket' => $ip_bucket,
+			'bucket_cat' => $bucket_cat,
+			'ip_bucket' => $ip_bucket,
 			'cutoff' => $cutoff,
 		)
 	);
@@ -153,28 +151,30 @@ function check_wartt_threshold($id_rule, $ip_bucket, $minutes, $bucket_type)
  * add_wartt_block - for the rule-bucket in question, add a block.
  *
  * @param int id_rule
+ * @param string bucket_cat
  * @param string ip_bucket
  * @param string bucket_type
  *
  * @return void
  *
  */
-function add_wartt_block($id_rule, $ip_bucket, $bucket_type)
+function add_wartt_block($id_rule, $bucket_cat, $ip_bucket, $bucket_type)
 {
 	global $smcFunc, $db_type;
 
 	if ($db_type == 'postgresql')
-		$sql = 'INSERT INTO {db_prefix}wartt_blocks (id_rule, ip_bucket, bucket_type, datetime)
-		VALUES ({int:rule}, {string:bucket}, {string:bucket_type}, {int:time})
+		$sql = 'INSERT INTO {db_prefix}wartt_blocks (id_rule, bucket_cat, ip_bucket, bucket_type, datetime)
+		VALUES ({int:rule}, {string:bucket_cat}, {string:bucket}, {string:bucket_type}, {int:time})
 		ON CONFLICT ON CONSTRAINT {db_prefix}wartt_blocks_pkey DO UPDATE SET datetime = {int:time}';
 	else
-		$sql = 'INSERT INTO {db_prefix}wartt_blocks (id_rule, ip_bucket, bucket_type, datetime)
-		VALUES ({int:rule}, {string:bucket}, {string:bucket_type}, {int:time})
+		$sql = 'INSERT INTO {db_prefix}wartt_blocks (id_rule, bucket_cat, ip_bucket, bucket_type, datetime)
+		VALUES ({int:rule}, {string:bucket_cat}, {string:bucket}, {string:bucket_type}, {int:time})
 		ON DUPLICATE KEY UPDATE datetime = {int:time}';
 
 	$request = $smcFunc['db_query']('', $sql,
 		array(
 			'rule' => $id_rule,
+			'bucket_cat' => $bucket_cat,
 			'bucket' => $ip_bucket,
 			'bucket_type' => $bucket_type,
 			'time' => time(),
@@ -186,20 +186,22 @@ function add_wartt_block($id_rule, $ip_bucket, $bucket_type)
  * remove_wartt_block - for the rule-bucket in question, delete a block.
  *
  * @param int id_rule
+ * @param string bucket_cat
  * @param string ip_bucket
  *
  * @return void
  *
  */
-function remove_wartt_block($id_rule, $ip_bucket)
+function remove_wartt_block($id_rule, $bucket_cat, $ip_bucket)
 {
 	global $smcFunc;
 
 	$request = $smcFunc['db_query']('', '
 		DELETE FROM {db_prefix}wartt_blocks
-		WHERE id_rule = {int:rule} AND ip_bucket = {string:bucket}',
+		WHERE id_rule = {int:rule} AND bucket_cat = {string:bucket_cat} AND ip_bucket = {string:bucket}',
 		array(
 			'rule' => $id_rule,
+			'bucket_cat' => $bucket_cat,
 			'bucket' => $ip_bucket,
 		)
 	);
@@ -209,20 +211,22 @@ function remove_wartt_block($id_rule, $ip_bucket)
  * check_wartt_block - for the rule-bucket in question, check whether it's currently blocked.
  *
  * @param int id_rule
+ * @param string bucket_cat
  * @param string ip_bucket
  *
  * @return int
  *
  */
-function check_wartt_block($id_rule, $ip_bucket)
+function check_wartt_block($id_rule, $bucket_cat, $ip_bucket)
 {
 	global $smcFunc;
 
 	$request = $smcFunc['db_query']('', '
 		SELECT 1 FROM {db_prefix}wartt_blocks
-		WHERE id_rule = {int:rule} AND ip_bucket = {string:bucket}',
+		WHERE id_rule = {int:rule} AND bucket_cat = {string:bucket_cat} AND ip_bucket = {string:bucket}',
 		array(
 			'rule' => $id_rule,
+			'bucket_cat' => $bucket_cat,
 			'bucket' => $ip_bucket,
 		)
 	);
@@ -240,29 +244,31 @@ function check_wartt_block($id_rule, $ip_bucket)
  * wartt_log_entry - add a log entry.
  *
  * @param int id_rule
+ * @param string bucket_cat
+ * @param string ip_bucket
  * @param string bucket_type
  * @param string info
  *
  * @return void
  *
  */
-function wartt_log_entry($id_rule, $bucket_type, $info)
+function wartt_log_entry($id_rule, $bucket_cat, $ip_bucket, $bucket_type, $info)
 {
 	global $smcFunc, $db_type;
 
 	if ($db_type == 'postgresql')
-		$sql = 'INSERT INTO {db_prefix}wartt_log (datetime, id_rule, bucket_type, info)
-		VALUES ({int:datetime}, {int:rule}, {string:bucket_type}, {string:info})
-		ON CONFLICT ON CONSTRAINT {db_prefix}wartt_log_pkey DO UPDATE SET info = {string:info}';
+		$sql = 'INSERT INTO {db_prefix}wartt_log (datetime, id_rule, bucket_cat, ip_bucket, bucket_type, info)
+		VALUES ({int:datetime}, {int:rule}, {string:bucket_cat}, {string:ip_bucket}, {string:bucket_type}, {string:info})';
 	else
-		$sql = 'INSERT INTO {db_prefix}wartt_log (datetime, id_rule, bucket_type, info)
-		VALUES ({int:datetime}, {int:rule}, {string:bucket_type}, {string:info})
-		ON DUPLICATE KEY UPDATE info = {string:info}';
+		$sql = 'INSERT INTO {db_prefix}wartt_log (datetime, id_rule, bucket_cat, ip_bucket, bucket_type, info)
+		VALUES ({int:datetime}, {int:rule}, {string:bucket_cat}, {string:ip_bucket}, {string:bucket_type}, {string:info})';
 
 	$request = $smcFunc['db_query']('', $sql,
 		array(
 			'datetime' => time(),
 			'rule' => $id_rule,
+			'bucket_cat' => $bucket_cat,
+			'ip_bucket' => $ip_bucket,
 			'bucket_type' => $bucket_type,
 			'info' => $info,
 		)
@@ -337,14 +343,14 @@ function check_table_maint()
 
 		// Check the threshold
 		if (!empty($rule))
-			$count = check_wartt_threshold($active_block['id_rule'], $active_block['ip_bucket'], $rule['minutes'], $rule['bucket_type']);
+			$count = check_wartt_threshold($active_block['bucket_cat'], $active_block['ip_bucket'], $rule['bucket_type'], $rule['minutes']);
 
 		// If threshold not met, or rule deleted or disabled, inactivate the block
 		if (empty($rule) || ($count < $rule['threshold']) || empty($rule['enabled']))
 		{
 			loadLanguage('WARTT');
-			remove_wartt_block($active_block['id_rule'], $active_block['ip_bucket']);
-			wartt_log_entry($active_block['id_rule'], $active_block['bucket_type'], $txt['wartt_inactivated'] . ' ' . $active_block['ip_bucket']);
+			remove_wartt_block($active_block['id_rule'], $active_block['bucket_cat'], $active_block['ip_bucket']);
+			wartt_log_entry($active_block['id_rule'], $active_block['bucket_cat'], $active_block['ip_bucket'], $active_block['bucket_type'], $txt['wartt_inactivated']);
 		}
 	}
 
@@ -369,7 +375,7 @@ function get_block_info($start = 0, $limit = 0, $sort = 'datetime DESC')
 	$block_info = array();
 
 	$request = $smcFunc['db_query']('', '
-		SELECT id_rule, ip_bucket, bucket_type, datetime
+		SELECT id_rule, bucket_cat, ip_bucket, bucket_type, datetime
 		FROM {db_prefix}wartt_blocks
 		ORDER BY {raw:sort}' .
 		(empty($limit) ? '' : ' LIMIT {int:limit}' . (empty($start) ? '' : ' OFFSET {int:start}')),
@@ -436,7 +442,7 @@ function get_log_info($start = 0, $limit = 0, $sort = 'id_entry DESC')
 	$log_info = array();
 
 	$request = $smcFunc['db_query']('', '
-		SELECT id_entry, datetime, id_rule, bucket_type, info
+		SELECT id_entry, datetime, id_rule, bucket_cat, ip_bucket, bucket_type, info
 		FROM {db_prefix}wartt_log
 		ORDER BY {raw:sort}' .
 		(empty($limit) ? '' : ' LIMIT {int:limit}' . (empty($start) ? '' : ' OFFSET {int:start}')),
@@ -498,7 +504,7 @@ function get_counters_info($start = 0, $limit = 0, $sort = 'time_bucket DESC')
 	$counter_info = array();
 
 	$request = $smcFunc['db_query']('', '
-		SELECT time_bucket, id_rule, bucket_type, ip_bucket, requests, crawl_target_requests
+		SELECT time_bucket, bucket_cat, ip_bucket, requests, crawl_target_requests
 		FROM {db_prefix}wartt_counters
 		ORDER BY {raw:sort}' .
 		(empty($limit) ? '' : ' LIMIT {int:limit}' . (empty($start) ? '' : ' OFFSET {int:start}')),
@@ -560,7 +566,7 @@ function get_rule_info($start = 0, $limit = 0, $sort = 'id_rule')
 	$rule_info = array();
 
 	$request = $smcFunc['db_query']('', '
-		SELECT id_rule, description, bucket_type, bucket_var, minutes, threshold, action, action_pct, enabled
+		SELECT id_rule, description, bucket_cat, bucket_type, bucket_var, minutes, threshold, action, action_pct, enabled
 		FROM {db_prefix}wartt_rules
 		ORDER BY {raw:sort}' .
 		(empty($limit) ? '' : ' LIMIT {int:limit}' . (empty($start) ? '' : ' OFFSET {int:start}')),
@@ -592,7 +598,7 @@ function get_rule($id_rule)
 	$rule_info = array();
 
 	$request = $smcFunc['db_query']('', '
-		SELECT id_rule, description, bucket_type, bucket_var, minutes, threshold, action, action_pct, enabled
+		SELECT id_rule, description, bucket_cat, bucket_type, bucket_var, minutes, threshold, action, action_pct, enabled
 		FROM {db_prefix}wartt_rules
 		WHERE id_rule = {int:rule}',
 		array(
@@ -685,6 +691,7 @@ function toggle_enabled_state($rules)
  * add_wartt_rule
  *
  * @param string $description
+ * @param string $bucket_cat
  * @param string $bucket_type
  * @param string $bucket_var
  * @param int $minutes
@@ -696,15 +703,16 @@ function toggle_enabled_state($rules)
  * @return null
  *
  */
-function add_wartt_rule($description, $bucket_type, $bucket_var, $minutes, $threshold, $action, $action_pct, $enabled)
+function add_wartt_rule($description, $bucket_cat, $bucket_type, $bucket_var, $minutes, $threshold, $action, $action_pct, $enabled)
 {
 	global $smcFunc;
 
 	$request = $smcFunc['db_query']('', '
-		INSERT INTO {db_prefix}wartt_rules (description, bucket_type, bucket_var, minutes, threshold, action, action_pct, enabled)
-		VALUES ({string:description}, {string:bucket_type}, {string:bucket_var}, {int:minutes}, {int:threshold}, {string:action}, {int:action_pct}, {int:enabled})',
+		INSERT INTO {db_prefix}wartt_rules (description, bucket_cat, bucket_type, bucket_var, minutes, threshold, action, action_pct, enabled)
+		VALUES ({string:description}, {string:bucket_cat}, {string:bucket_type}, {string:bucket_var}, {int:minutes}, {int:threshold}, {string:action}, {int:action_pct}, {int:enabled})',
 		array(
 			'description' => $description,
+			'bucket_cat' => $bucket_cat,
 			'bucket_type' => $bucket_type,
 			'bucket_var' => $bucket_var,
 			'minutes' => $minutes,
@@ -721,6 +729,7 @@ function add_wartt_rule($description, $bucket_type, $bucket_var, $minutes, $thre
  *
  * @param int $id_rule
  * @param string $description
+ * @param string $bucket_cat
  * @param string $bucket_type
  * @param string $bucket_var
  * @param int $minutes
@@ -732,13 +741,14 @@ function add_wartt_rule($description, $bucket_type, $bucket_var, $minutes, $thre
  * @return null
  *
  */
-function mod_wartt_rule($id_rule, $description, $bucket_type, $bucket_var, $minutes, $threshold, $action, $action_pct, $enabled)
+function mod_wartt_rule($id_rule, $description, $bucket_cat, $bucket_type, $bucket_var, $minutes, $threshold, $action, $action_pct, $enabled)
 {
 	global $smcFunc;
 
 	$request = $smcFunc['db_query']('', '
 		UPDATE {db_prefix}wartt_rules
 			SET description = {string:description},
+			bucket_cat = {string:bucket_cat},
 			bucket_type = {string:bucket_type},
 			bucket_var = {string:bucket_var},
 			minutes = {int:minutes},
@@ -750,6 +760,7 @@ function mod_wartt_rule($id_rule, $description, $bucket_type, $bucket_var, $minu
 		array(
 			'id_rule' => $id_rule,
 			'description' => $description,
+			'bucket_cat' => $bucket_cat,
 			'bucket_type' => $bucket_type,
 			'bucket_var' => $bucket_var,
 			'minutes' => $minutes,
@@ -1029,6 +1040,7 @@ function get_memory_info()
 function get_memory_count()
 {
 	// Fixed at 2 at this point.
+	// Seems silly, but makes list processing easier & more consistent.
 	return 2;
 }
 

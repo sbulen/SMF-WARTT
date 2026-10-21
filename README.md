@@ -13,16 +13,16 @@ WARTT is rule-based.  Each rule defines a bucket of IPs, a threshold, and an act
 
 Thresholds are defined in terms of requests, per a specified number of minutes, per each IP bucket.  E.g., if 10,000 requests are made within 10 minutes per a certain block of IP addresses, take the action for that block of IP addresses.
 
-### Blocks of IP addresses may be tracked by:
- - IP mask, e.g., the first three nodes of an ipv4 IP address.
+### Blocks of IP addresses may be t categorized four ways:
  - ASN, the ASN number of a network provider that identifies a set of their IP addresses.
  - Country, the country code associated with a set of IP addresses.
- - Crawl target, which is a special form of an IP mask, specifially tracking the number of requests that are normally dominated by crawlers, e.g., topic= requests.
+ - CIDR, an IP address range.
+ - Crawl target, which is a special form of an CIDR, specifially tracking the number of requests that are normally dominated by crawlers, e.g., topic= requests, within an IP address range.
 
-### There are three ways to identify ASN or country:
- - If you have ASN or Country available via an environment variable, that may be used.  Some hosts provide this.
- - If you have ASN or Country available via a server variable, that may be used.  Some hosts provide this.
- - ASN or country may be looked up by WARTT by IP.  This requires that the SMF Web Access Log Analyzer (WALA) mod is installed, and the DBIP tables for ASN & country are loaded and current.
+### There are three types of ASN or country lookups:
+ - Environment variable: If you have ASN or Country available via an environment variable, that may be used.  Some hosts provide this.
+ - Server variable: If you have ASN or Country available via a server variable, that may be used.  Some hosts provide this.
+ - Lookup: ASN or country may be looked up by WARTT by IP.  This requires that the SMF Web Access Log Analyzer (WALA) mod is installed, and the DBIP tables for ASN & country are loaded and current.
 
 WARTT & WALA work hand-in-hand for IP lookups.
 
@@ -33,7 +33,7 @@ WARTT & WALA work hand-in-hand for IP lookups.
  - Log only - perfect for monitoring activity or testing thresholds.
 
 ### Crawl Targets:
- - Many crawlers are effectively disguised as residential users, making it hard to block them without blocking real users.  The Crawl Target bucket type helps segregate humans from crawlers.
+ - The Crawl Target bucket type helps segregate humans from crawlers.  Many crawlers are effectively disguised as residential users, making it hard to block them without blocking real users.
  - WARTT will keep track of the number of requests that are targeted by crawlers separately, e.g., topic=, board=, msg= requests.  Crawlers normally hit these links nearly exclusively.
  - Humans cannot hit these links exclusively without editing their browser URLs hundreds of times in a row.  Human activity must include navigation to those other topics or boards, and typically includes searches and other activity.
 

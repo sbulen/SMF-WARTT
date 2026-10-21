@@ -44,7 +44,24 @@ function template_add_rule()
 						<span class="smalltext">', $txt['wartt_desc_desc'], '</span>
 					</dt>
 					<dd>
-						<input type="text" name="description" value="', $context['wartt_rule_info']['description'], '" size="20">
+						<input type="text" name="description" value="', $context['wartt_rule_info']['description'], '" size="20" maxlength="20" required>
+					</dd>';
+
+	// Bucket_cat.
+	echo '
+					<dt>
+						<strong>', $txt['wartt_cat'], ':</strong><br>
+						<span class="smalltext">', $txt['wartt_desc_cat'], '</span>
+					</dt>
+					<dd>
+						<select name="bucket_cat" id="bucket_cat" required>
+							<option value=""', ($context['wartt_rule_info']['bucket_cat'] == '' ? ' selected' : ''), '></option>
+							<option value="ASN"', ($context['wartt_rule_info']['bucket_cat'] == 'ASN' ? ' selected' : ''), '>', $txt['wartt_bcdesc_asn'], '</option>
+							<option value="Country"', ($context['wartt_rule_info']['bucket_cat'] == 'Country' ? ' selected' : ''), '>', $txt['wartt_bcdesc_country'], '</option>
+							<option value="CIDR"', ($context['wartt_rule_info']['bucket_cat'] == 'CIDR' ? ' selected' : ''), '>', $txt['wartt_bcdesc_cidr'], '</option>
+							<option value="Crawl_tgt"', ($context['wartt_rule_info']['bucket_cat'] == 'Crawl_tgt' ? ' selected' : ''), '>', $txt['wartt_bcdesc_crawl_target'], '</option>';
+
+	echo '					</select>
 					</dd>';
 
 	// Bucket_type.
@@ -54,9 +71,8 @@ function template_add_rule()
 						<span class="smalltext">', $txt['wartt_desc_type'], '</span>
 					</dt>
 					<dd>
-						<select name="bucket_type">
-							<option value="ip_mask"', ($context['wartt_rule_info']['bucket_type'] == 'ip_mask' ? ' selected' : ''), '>', $txt['wartt_btdesc_ipmask'], '</option>
-							<option value="crawl_tgt"', ($context['wartt_rule_info']['bucket_type'] == 'crawl_tgt' ? ' selected' : ''), '>', $txt['wartt_btdesc_crawl_tgt'], '</option>
+						<select name="bucket_type" id="bucket_type">
+							<option value=""', ($context['wartt_rule_info']['bucket_type'] == '' ? ' selected' : ''), '></option>
 							<option value="server_var"', ($context['wartt_rule_info']['bucket_type'] == 'server_var' ? ' selected' : ''), '>', $txt['wartt_btdesc_servervar'], '</option>
 							<option value="env_var"', ($context['wartt_rule_info']['bucket_type'] == 'env_var' ? ' selected' : ''), '>', $txt['wartt_btdesc_envvar'], '</option>';
 
@@ -65,8 +81,7 @@ function template_add_rule()
 	if (!empty($context['wartt_wala_populated']))
 	{
 		echo '
-							<option value="asn_lookup"', ($context['wartt_rule_info']['bucket_type'] == 'asn_lookup' ? ' selected' : ''), '>', $txt['wartt_btdesc_asnlookup'], '</option>
-							<option value="co_lookup"', ($context['wartt_rule_info']['bucket_type'] == 'co_lookup' ? ' selected' : ''), '>', $txt['wartt_btdesc_colookup'], '</option>';
+							<option value="lookup"', ($context['wartt_rule_info']['bucket_type'] == 'lookup' ? ' selected' : ''), '>', $txt['wartt_btdesc_lookup'], '</option>';
 	}
 
 	echo '					</select>
@@ -79,7 +94,7 @@ function template_add_rule()
 						<span class="smalltext">', $txt['wartt_desc_var'], '</span>
 					</dt>
 					<dd>
-						<input type="text" name="bucket_var" value="', $context['wartt_rule_info']['bucket_var'], '" size="100">
+						<input type="text" name="bucket_var" id="bucket_var" value="', $context['wartt_rule_info']['bucket_var'], '" size="100" maxlength="100">
 					</dd>';
 
 	// Minutes.
@@ -89,7 +104,7 @@ function template_add_rule()
 						<span class="smalltext">', $txt['wartt_desc_minutes'], '</span>
 					</dt>
 					<dd>
-						<input type="number" name="minutes" value="', $context['wartt_rule_info']['minutes'], '" min="1" max="1440" required>
+						<input type="number" name="minutes" style="width: 70px;" value="', $context['wartt_rule_info']['minutes'], '" min="10" max="1440" step="10" required>
 					</dd>';
 
 	// Threshold.
@@ -99,7 +114,7 @@ function template_add_rule()
 						<span class="smalltext">', $txt['wartt_desc_threshold'], '</span>
 					</dt>
 					<dd>
-						<input type="number" name="threshold" style="width: 70px;" value="', $context['wartt_rule_info']['threshold'], '" min="10" max="20000" required>
+						<input type="number" name="threshold" style="width: 80px;" value="', $context['wartt_rule_info']['threshold'], '" min="10" max="20000" step="10" required>
 					</dd>';
 
 	// Action.
@@ -109,7 +124,8 @@ function template_add_rule()
 						<span class="smalltext">', $txt['wartt_desc_action'], '</span>
 					</dt>
 					<dd>
-						<select name="wartt_action">
+						<select name="wartt_action" id="wartt_action" required>
+							<option value=""', ($context['wartt_rule_info']['action'] == '' ? ' selected' : ''), '></option>
 							<option value="log"', ($context['wartt_rule_info']['action'] == 'log' ? ' selected' : ''), '>', $txt['wartt_adesc_log'], '</option>
 							<option value="block"', ($context['wartt_rule_info']['action'] == 'block' ? ' selected' : ''), '>', $txt['wartt_adesc_block'], '</option>
 							<option value="noviewct"', ($context['wartt_rule_info']['action'] == 'noviewct' ? ' selected' : ''), '>', $txt['wartt_adesc_noviewct'], '</option>
@@ -124,7 +140,7 @@ function template_add_rule()
 						<span class="smalltext">', $txt['wartt_desc_actpct'], '</span>
 					</dt>
 					<dd>
-						<input type="number" name="action_pct" value="', $context['wartt_rule_info']['action_pct'], '" min="0" max="100" required>
+						<input type="number" name="action_pct" id="action_pct" value="', $context['wartt_rule_info']['action_pct'], '" min="0" max="100" required>
 					</dd>';
 
 	// Enabled.
@@ -148,6 +164,9 @@ function template_add_rule()
 			</div>
 		</form>
 	</div>';
+
+	// insert js for edits here...
+	wartt_js_edits();
 }
 
 /**
@@ -184,7 +203,24 @@ function template_mod_rule()
 						<span class="smalltext">', $txt['wartt_desc_desc'], '</span>
 					</dt>
 					<dd>
-						<input type="text" name="description" value="', $context['wartt_rule_info']['description'], '" size="20">
+						<input type="text" name="description" value="', $context['wartt_rule_info']['description'], '" size="20" maxlength="20" required>
+					</dd>';
+
+	// Bucket_cat.
+	echo '
+					<dt>
+						<strong>', $txt['wartt_cat'], ':</strong><br>
+						<span class="smalltext">', $txt['wartt_desc_cat'], '</span>
+					</dt>
+					<dd>
+						<select name="bucket_cat" id="bucket_cat" required>
+							<option value=""', ($context['wartt_rule_info']['bucket_cat'] == '' ? ' selected' : ''), '></option>
+							<option value="ASN"', ($context['wartt_rule_info']['bucket_cat'] == 'ASN' ? ' selected' : ''), '>', $txt['wartt_bcdesc_asn'], '</option>
+							<option value="Country"', ($context['wartt_rule_info']['bucket_cat'] == 'Country' ? ' selected' : ''), '>', $txt['wartt_bcdesc_country'], '</option>
+							<option value="CIDR"', ($context['wartt_rule_info']['bucket_cat'] == 'CIDR' ? ' selected' : ''), '>', $txt['wartt_bcdesc_cidr'], '</option>
+							<option value="Crawl_tgt"', ($context['wartt_rule_info']['bucket_cat'] == 'Crawl_tgt' ? ' selected' : ''), '>', $txt['wartt_bcdesc_crawl_target'], '</option>';
+
+	echo '					</select>
 					</dd>';
 
 	// Bucket_type.
@@ -194,9 +230,8 @@ function template_mod_rule()
 						<span class="smalltext">', $txt['wartt_desc_type'], '</span>
 					</dt>
 					<dd>
-						<select name="bucket_type">
-							<option value="ip_mask"', ($context['wartt_rule_info']['bucket_type'] == 'ip_mask' ? ' selected' : ''), '>', $txt['wartt_btdesc_ipmask'], '</option>
-							<option value="crawl_tgt"', ($context['wartt_rule_info']['bucket_type'] == 'crawl_tgt' ? ' selected' : ''), '>', $txt['wartt_btdesc_crawl_tgt'], '</option>
+						<select name="bucket_type" id="bucket_type">
+							<option value=""', ($context['wartt_rule_info']['bucket_type'] == '' ? ' selected' : ''), '></option>
 							<option value="server_var"', ($context['wartt_rule_info']['bucket_type'] == 'server_var' ? ' selected' : ''), '>', $txt['wartt_btdesc_servervar'], '</option>
 							<option value="env_var"', ($context['wartt_rule_info']['bucket_type'] == 'env_var' ? ' selected' : ''), '>', $txt['wartt_btdesc_envvar'], '</option>';
 
@@ -205,8 +240,7 @@ function template_mod_rule()
 	if (!empty($context['wartt_wala_populated']))
 	{
 		echo '
-							<option value="asn_lookup"', ($context['wartt_rule_info']['bucket_type'] == 'asn_lookup' ? ' selected' : ''), '>', $txt['wartt_btdesc_asnlookup'], '</option>
-							<option value="co_lookup"', ($context['wartt_rule_info']['bucket_type'] == 'co_lookup' ? ' selected' : ''), '>', $txt['wartt_btdesc_colookup'], '</option>';
+							<option value="lookup"', ($context['wartt_rule_info']['bucket_type'] == 'lookup' ? ' selected' : ''), '>', $txt['wartt_btdesc_lookup'], '</option>';
 	}
 
 	echo '					</select>
@@ -219,7 +253,7 @@ function template_mod_rule()
 						<span class="smalltext">', $txt['wartt_desc_var'], '</span>
 					</dt>
 					<dd>
-						<input type="text" name="bucket_var" value="', $context['wartt_rule_info']['bucket_var'], '" size="100">
+						<input type="text" name="bucket_var" id="bucket_var" value="', $context['wartt_rule_info']['bucket_var'], '" size="100" maxlength="100">
 					</dd>';
 
 	// Minutes.
@@ -229,7 +263,7 @@ function template_mod_rule()
 						<span class="smalltext">', $txt['wartt_desc_minutes'], '</span>
 					</dt>
 					<dd>
-						<input type="number" name="minutes" value="', $context['wartt_rule_info']['minutes'], '" min="1" max="1440" required>
+						<input type="number" name="minutes" style="width: 70px;" value="', $context['wartt_rule_info']['minutes'], '" min="10" max="1440" step="10" required>
 					</dd>';
 
 	// Threshold.
@@ -239,7 +273,7 @@ function template_mod_rule()
 						<span class="smalltext">', $txt['wartt_desc_threshold'], '</span>
 					</dt>
 					<dd>
-						<input type="number" name="threshold" style="width: 70px;" value="', $context['wartt_rule_info']['threshold'], '" min="10" max="20000" required>
+						<input type="number" name="threshold" style="width: 80px;" value="', $context['wartt_rule_info']['threshold'], '" min="10" max="20000" step="10" required>
 					</dd>';
 
 	// Action.
@@ -249,7 +283,8 @@ function template_mod_rule()
 						<span class="smalltext">', $txt['wartt_desc_action'], '</span>
 					</dt>
 					<dd>
-						<select name="wartt_action">
+						<select name="wartt_action" id="wartt_action" required>
+							<option value=""', ($context['wartt_rule_info']['action'] == '' ? ' selected' : ''), '></option>
 							<option value="log"', ($context['wartt_rule_info']['action'] == 'log' ? ' selected' : ''), '>', $txt['wartt_adesc_log'], '</option>
 							<option value="block"', ($context['wartt_rule_info']['action'] == 'block' ? ' selected' : ''), '>', $txt['wartt_adesc_block'], '</option>
 							<option value="noviewct"', ($context['wartt_rule_info']['action'] == 'noviewct' ? ' selected' : ''), '>', $txt['wartt_adesc_noviewct'], '</option>
@@ -264,7 +299,7 @@ function template_mod_rule()
 						<span class="smalltext">', $txt['wartt_desc_actpct'], '</span>
 					</dt>
 					<dd>
-						<input type="number" name="action_pct" value="', $context['wartt_rule_info']['action_pct'], '" min="0" max="100" required>
+						<input type="number" name="action_pct" id="action_pct" value="', $context['wartt_rule_info']['action_pct'], '" min="0" max="100" required>
 					</dd>';
 
 	// Enabled.
@@ -289,4 +324,73 @@ function template_mod_rule()
 			</div>
 		</form>
 	</div>';
+
+	// insert js for edits here...
+	wartt_js_edits();
+}
+
+/**
+ * .js online edits - add & mod use same IDs, so this can be shared...
+ */
+
+function wartt_js_edits()
+{
+	global $context, $scripturl, $txt;
+
+	echo '
+<script>
+	//# sourceURL=wartt_js_edits.js
+
+	const bucket_cat_input = document.getElementById(\'bucket_cat\');
+	const bucket_type_input = document.getElementById(\'bucket_type\');
+	const bucket_var_input = document.getElementById(\'bucket_var\');
+	const wartt_action_input = document.getElementById(\'wartt_action\');
+	const action_pct_input = document.getElementById(\'action_pct\');
+
+	// Functions used by listeners
+	function do_cat_checks(event) {
+		if (bucket_cat_input.value == \'CIDR\' || bucket_cat_input.value == \'Crawl_tgt\') {
+			bucket_type_input.value = \'\';
+			bucket_type_input.disabled = true;
+			bucket_type_input.required = false;
+			bucket_var_input.value = \'\';
+			bucket_var_input.disabled = true;
+			bucket_var_input.required = false;
+		} else {
+			bucket_type_input.disabled = false;
+			bucket_type_input.required = true;
+			bucket_var_input.disabled = false;
+		}
+	}
+
+	function do_type_checks(event) {
+		if (bucket_type_input.value == \'server_var\' || bucket_type_input.value == \'env_var\') {
+			bucket_var_input.disabled = false;
+			bucket_var_input.required = true;
+		} else {
+			bucket_var_input.value = \'\';
+			bucket_var_input.disabled = true;
+			bucket_var_input.required = false;
+		}
+	}
+
+	function do_action_checks(event) {
+		if (wartt_action_input.value == \'block\') {
+			action_pct_input.disabled = false;
+		} else {
+			action_pct_input.value = 0;
+			action_pct_input.disabled = true;
+		}
+	}
+
+	// Do these now, setup entry form...
+	do_cat_checks();
+	do_type_checks();
+	do_action_checks();
+
+	// Listeners for input changes
+	bucket_cat_input.addEventListener(\'input\', do_cat_checks);
+	bucket_type_input.addEventListener(\'input\', do_type_checks);
+	wartt_action_input.addEventListener(\'input\', do_action_checks);
+</script>';
 }

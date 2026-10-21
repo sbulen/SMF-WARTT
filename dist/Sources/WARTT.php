@@ -25,9 +25,9 @@ if (!defined('SMF')) {
 }
 
 /**
- * wartt_check_thresholds - called directly from index.php.
+ * wartt_check_thresholds - called at the beginning of session load time.
  *
- * Primary function called from index.php to check whether thresholds have been exceeded,
+ * Primary function called to check whether thresholds have been exceeded,
  * and to take appropriate action if so.
  *
  * Intention is to check stats up front & early, before session has been checked.
@@ -60,35 +60,50 @@ function wartt_check_thresholds()
 	require_once($sourcedir . '/WARTTModel.php');
 	loadLanguage('WARTT');
 
+	// Which categories do we need to track?  We only want one bucket per category, no matter how many rules/bucket_types.
+	// The idea is that buckets should only need to be written once, not once per rule that uses that bucket.
+	// I.e., if 8 different actions for an ASN, the DB writes should only be done once per ASN found.
+	// (DB reads may need to be done multiple times, e.g., different minutes/thresholds per rule.)
 	$rules = get_enabled_wartt_rules();
+	$buckets = array();
 	$minute = strip_seconds(time());
-
 	foreach ($rules AS $rule)
 	{
-		$bucket = wartt_bucket_value($rule);
+		$bucket = wartt_bucket_value($rule['bucket_cat'], $rule['bucket_type'], $rule['bucket_var']);
 		if ($bucket === false)
 			continue;
-		incr_wartt_counter($minute, $rule['id_rule'], $bucket, $rule['bucket_type']);
-		$threshold = check_wartt_threshold($rule['id_rule'], $bucket, $rule['minutes'], $rule['bucket_type']);
+
+		// Only want to do this once per bucket_cat
+		if (!isset($buckets[$rule['bucket_cat']]))
+		{
+			$buckets[$rule['bucket_cat']] = $bucket;
+			incr_wartt_counter($minute, $rule['bucket_cat'], $bucket);
+		}
+	}
+
+	// Check bucket for each active rule
+	foreach ($rules AS $rule)
+	{
+		if (!isset($buckets[$rule['bucket_cat']]))
+			continue;
+
+		$threshold = check_wartt_threshold($rule['bucket_cat'], $buckets[$rule['bucket_cat']], $rule['bucket_type'], $rule['minutes']);
 
 		// Detect changes in state - rules changing from active to inactive or vice-versa...
-		$curr_state = check_wartt_block($rule['id_rule'], $bucket);
-		if ((($curr_state == 0) && ($threshold >= $rule['threshold'])) || (($curr_state == 1) && ($threshold < $rule['threshold'])))
+		$curr_state = check_wartt_block($rule['id_rule'], $rule['bucket_cat'], $buckets[$rule['bucket_cat']]);
+		if (($curr_state == 0) && ($threshold >= $rule['threshold']))
 		{
-			if ($curr_state == 0)
-			{
-				// Now blocking this...
-				$curr_state = 1;
-				add_wartt_block($rule['id_rule'], $bucket, $rule['bucket_type']);
-				wartt_log_entry($rule['id_rule'], $rule['bucket_type'], $txt['wartt_activated'] . ' ' . $bucket);
-			}
-			else
-			{
-				// Now unblocking this...
-				$curr_state = 0;
-				remove_wartt_block($rule['id_rule'], $bucket);
-				wartt_log_entry($rule['id_rule'], $rule['bucket_type'], $txt['wartt_inactivated'] . ' ' . $bucket);
-			}
+			// Now blocking this...
+			$curr_state = 1;
+			add_wartt_block($rule['id_rule'], $rule['bucket_cat'], $buckets[$rule['bucket_cat']], $rule['bucket_type']);
+			wartt_log_entry($rule['id_rule'], $rule['bucket_cat'], $buckets[$rule['bucket_cat']], $rule['bucket_type'], $txt['wartt_activated']);
+		}
+		elseif (($curr_state == 1) && ($threshold < $rule['threshold']))
+		{
+			// Now unblocking this...
+			$curr_state = 0;
+			remove_wartt_block($rule['id_rule'], $rule['bucket_cat'], $buckets[$rule['bucket_cat']]);
+			wartt_log_entry($rule['id_rule'], $rule['bucket_cat'], $buckets[$rule['bucket_cat']], $rule['bucket_type'], $txt['wartt_inactivated']);
 		}
 
 		// Take specified actions...
@@ -141,18 +156,18 @@ function ua_whitelisted()
  * wartt_bucket_value - determine which bucket to use.  Helper function.
  *
  * Bucket Types:
- * - ip_mask = apply mask & return CIDR (basically an IP range)
  * - server_var = return server var value (helpful if ASN/country avail in server var)
  * - env_var = return env var value (helpful if ASN/country avail in env var)
- * - asn_lookup = if WALA present, use IP to lookup ASN
- * - co_lookup = if WALA present, use IP to lookup country
+ * - lookup = if WALA present, use IP to lookup ASN or country
  *
- * @param array rule
+ * @param string bucket_cat
+ * @param string bucket_type
+ * @param string bucket_var
  *
- * @return string | false - return false if not found
+ * @return string bucket | false - return false if not found
  *
  */
-function wartt_bucket_value($rule)
+function wartt_bucket_value($bucket_cat, $bucket_type, $bucket_var)
 {
 	global $modSettings;
 
@@ -166,11 +181,11 @@ function wartt_bucket_value($rule)
 
 	// return false if you can't find anything...
 	$bucket = false;
-	switch ($rule['bucket_type'])
+	switch ($bucket_cat)
 	{
 		// IP masks...
-		case 'ip_mask':
-		case 'crawl_tgt':
+		case 'CIDR':
+		case 'Crawl_tgt':
 			// Convert the IP address to its binary representation.
 			$ip = inet_pton($_SERVER['REMOTE_ADDR']);
 
@@ -202,41 +217,16 @@ function wartt_bucket_value($rule)
 			$bucket = inet_ntop($ip & $mask) . '/' . $masklen;
 
 			break;
-		// Server var...
-		case 'server_var':
-			if (!empty($_SERVER[$rule['bucket_var']])) {
-				$bucket = $_SERVER[$rule['bucket_var']];
-			}
-			// Check whitelists...
-			if (preg_match('~^[A-Z]{2}$~', $bucket) === 1) {
-				$whitelist_cos = explode(',', $modSettings['wartt_whitelist_country']);
-				if (in_array($bucket, $whitelist_cos))
-					return false;
-			} elseif (preg_match('~^\d{1,6}$~', $bucket) === 1) {
-				$whitelist_asns = explode(',', $modSettings['wartt_whitelist_asn']);
-				if (in_array($bucket, $whitelist_asns))
-					return false;
-			}
-			break;
-		// Env var...
-		case 'env_var':
-			if (!empty($_ENV[$rule['bucket_var']])) {
-				$bucket = $_ENV[$rule['bucket_var']];
-			}
-			// Check whitelists...
-			if (preg_match('~^[A-Z]{2}$~', $bucket) === 1) {
-				$whitelist_cos = explode(',', $modSettings['wartt_whitelist_country']);
-				if (in_array($bucket, $whitelist_cos))
-					return false;
-			} elseif (preg_match('~^\d{1,6}$~', $bucket) === 1) {
-				$whitelist_asns = explode(',', $modSettings['wartt_whitelist_asn']);
-				if (in_array($bucket, $whitelist_asns))
-					return false;
-			}
-			break;
-		// ASN lookup...
-		case 'asn_lookup':
-			$bucket = get_dbip_asn($_SERVER['REMOTE_ADDR']);
+		// ASN...
+		case 'ASN':
+			if ($bucket_type === 'lookup')
+				$bucket = get_dbip_asn($_SERVER['REMOTE_ADDR']);
+			elseif ($bucket_type === 'server_var')
+				$bucket = $_SERVER[$bucket_var];
+			elseif ($bucket_type === 'env_var')
+				$bucket = $_ENV[$bucket_var];
+			else
+				$bucket = false;
 			// Check whitelist...
 			if ($bucket !== false) {
 				$whitelist_asns = explode(',', $modSettings['wartt_whitelist_asn']);
@@ -244,9 +234,16 @@ function wartt_bucket_value($rule)
 					return false;
 			}
 			break;
-		// COUNTRY lookup...
-		case 'co_lookup':
-			$bucket = get_dbip_country($_SERVER['REMOTE_ADDR']);
+		// Country...
+		case 'Country':
+			if ($bucket_type === 'lookup')
+				$bucket = get_dbip_country($_SERVER['REMOTE_ADDR']);
+			elseif ($bucket_type === 'server_var')
+				$bucket = $_SERVER[$bucket_var];
+			elseif ($bucket_type === 'env_var')
+				$bucket = $_ENV[$bucket_var];
+			else
+				$bucket = false;
 			// Check whitelist...
 			if ($bucket !== false) {
 				$whitelist_cos = explode(',', $modSettings['wartt_whitelist_country']);
@@ -260,7 +257,7 @@ function wartt_bucket_value($rule)
 }
 
 /**
- * strip_seconds - remove seconds from unix timestamp for use as a time bucket.  Helper function.
+ * strip_seconds - Create 2 minute time buckets.  Helper function.
  *
  * @param int
  *
@@ -269,7 +266,7 @@ function wartt_bucket_value($rule)
  */
 function strip_seconds($time)
 {
-	return $time - ($time % 60);
+	return $time - ($time % 120);
 }
 
 /**
@@ -397,6 +394,20 @@ function wartt_blocks()
 				'sort' => array(
 					'default' => 'id_rule',
 					'reverse' => 'id_rule DESC',
+				),
+			),
+			'bucket_cat' => array(
+				'header' => array(
+					'value' => $txt['wartt_cat'],
+					'class' => 'lefttext',
+				),
+				'data' => array(
+					'db' => 'bucket_cat',
+					'class' => 'smalltext',
+				),
+				'sort' => array(
+					'default' => 'bucket_cat',
+					'reverse' => 'bucket_cat DESC',
 				),
 			),
 			'bucket_type' => array(
@@ -567,6 +578,20 @@ function wartt_log()
 					'reverse' => 'id_rule DESC',
 				),
 			),
+			'bucket_cat' => array(
+				'header' => array(
+					'value' => $txt['wartt_cat'],
+					'class' => 'lefttext',
+				),
+				'data' => array(
+					'db' => 'bucket_cat',
+					'class' => 'smalltext',
+				),
+				'sort' => array(
+					'default' => 'bucket_cat',
+					'reverse' => 'bucket_cat DESC',
+				),
+			),
 			'bucket_type' => array(
 				'header' => array(
 					'value' => $txt['wartt_type'],
@@ -579,6 +604,20 @@ function wartt_log()
 				'sort' => array(
 					'default' => 'bucket_type',
 					'reverse' => 'bucket_type DESC',
+				),
+			),
+			'ip_bucket' => array(
+				'header' => array(
+					'value' => $txt['wartt_ip_bucket'],
+					'class' => 'lefttext',
+				),
+				'data' => array(
+					'db' => 'ip_bucket',
+					'class' => 'smalltext',
+				),
+				'sort' => array(
+					'default' => 'ip_bucket',
+					'reverse' => 'ip_bucket DESC',
 				),
 			),
 			'wartt_info' => array(
@@ -693,32 +732,18 @@ function wartt_counters()
 					'reverse' => 'time_bucket',
 				),
 			),
-			'id_rule' => array(
+			'bucket_cat' => array(
 				'header' => array(
-					'value' => $txt['wartt_id'],
+					'value' => $txt['wartt_cat'],
 					'class' => 'lefttext',
 				),
 				'data' => array(
-					'db' => 'id_rule',
+					'db' => 'bucket_cat',
 					'class' => 'smalltext',
 				),
 				'sort' => array(
-					'default' => 'id_rule',
-					'reverse' => 'id_rule DESC',
-				),
-			),
-			'bucket_type' => array(
-				'header' => array(
-					'value' => $txt['wartt_type'],
-					'class' => 'lefttext',
-				),
-				'data' => array(
-					'db' => 'bucket_type',
-					'class' => 'smalltext',
-				),
-				'sort' => array(
-					'default' => 'bucket_type',
-					'reverse' => 'bucket_type DESC',
+					'default' => 'bucket_cat',
+					'reverse' => 'bucket_cat DESC',
 				),
 			),
 			'ip_bucket' => array(
@@ -881,6 +906,20 @@ function wartt_rules()
 				'sort' => array(
 					'default' => 'description',
 					'reverse' => 'description DESC',
+				),
+			),
+			'bucket_cat' => array(
+				'header' => array(
+					'value' => $txt['wartt_cat'],
+					'class' => 'lefttext',
+				),
+				'data' => array(
+					'db' => 'bucket_cat',
+					'class' => 'smalltext',
+				),
+				'sort' => array(
+					'default' => 'bucket_cat',
+					'reverse' => 'bucket_cat DESC',
 				),
 			),
 			'bucket_type' => array(
@@ -1073,6 +1112,7 @@ function wartt_add_rule()
 
 		// In case you need to come back after errors....
 		$_SESSION['wartt_rule_info']['description'] = !empty($_POST['description']) ? $smcFunc['htmlspecialchars']($_POST['description']) : '';
+		$_SESSION['wartt_rule_info']['bucket_cat'] = !empty($_POST['bucket_cat']) ? $smcFunc['htmlspecialchars']($_POST['bucket_cat']) : '';
 		$_SESSION['wartt_rule_info']['bucket_type'] = !empty($_POST['bucket_type']) ? $smcFunc['htmlspecialchars']($_POST['bucket_type']) : '';
 		$_SESSION['wartt_rule_info']['bucket_var'] = !empty($_POST['bucket_var']) ? $smcFunc['htmlspecialchars']($_POST['bucket_var']) : '';
 		$_SESSION['wartt_rule_info']['minutes'] = !empty($_POST['minutes']) ? $smcFunc['htmlspecialchars']($_POST['minutes']) : '';
@@ -1081,25 +1121,39 @@ function wartt_add_rule()
 		$_SESSION['wartt_rule_info']['action_pct'] = !empty($_POST['action_pct']) ? $smcFunc['htmlspecialchars']($_POST['action_pct']) : '';
 		$_SESSION['wartt_rule_info']['enabled'] = (int) isset($_POST['enabled']);
 
-		// Validate the description
+		// Description validated in form
 		$context['wartt_rule_info']['description'] = $smcFunc['htmlspecialchars']($_POST['description']);
 		$description = $smcFunc['htmlspecialchars']($_POST['description']);
-		if (!is_string($description) || empty($description) || (strlen($description) > 20))
-			fatal_lang_error('wartt_bad_desc', false);
+
+		// Cat validated in form
+		$context['wartt_rule_info']['bucket_cat'] = $smcFunc['htmlspecialchars']($_POST['bucket_cat']);
+		$bucket_cat = $_POST['bucket_cat'];
 
 		// Type validated in form
-		$context['wartt_rule_info']['bucket_type'] = $_POST['bucket_type'];
-		$bucket_type = $_POST['bucket_type'];
-
-		// Validate the bucket_var
-		$context['wartt_rule_info']['bucket_var'] = $smcFunc['htmlspecialchars']($_POST['bucket_var']);
-		$bucket_var = $smcFunc['htmlspecialchars']($_POST['bucket_var']);
-		if (!is_string($bucket_var) || (in_array($bucket_type, array('server_var', 'env_var')) && empty($bucket_var)) || (strlen($bucket_var) > 255))
-			fatal_lang_error('wartt_bad_var', false);
+		$context['wartt_rule_info']['bucket_type'] = $_POST['bucket_type'] ?? '';
+		$bucket_type = $_POST['bucket_type'] ?? '';
 
 		// Ensure bucket_var exists as a valid $_SERVER or $_ENV variable
+		// Can't be validated in form...
+		$context['wartt_rule_info']['bucket_var'] = $smcFunc['htmlspecialchars']($_POST['bucket_var'] ?? '');
+		$bucket_var = $smcFunc['htmlspecialchars']($_POST['bucket_var'] ?? '');
+
 		if ((($bucket_type == 'server_var') && (!isset($_SERVER[$bucket_var]))) || (($bucket_type == 'env_var') && (!isset($_ENV[$bucket_var]))))
 			fatal_lang_error('wartt_bad_var', false);
+
+		// Ensure bucket_var contains properly formatted co or asn
+		if (($bucket_type == 'server_var') && isset($_SERVER[$bucket_var])) {
+			if (($bucket_cat == 'ASN') && (preg_match('~^\d{1,6}$~', $_SERVER[$bucket_var]) != 1))
+				fatal_lang_error('wartt_bad_asn', false);
+			if (($bucket_cat == 'Country') && (preg_match('~^[A-Z]{2}$~', $_SERVER[$bucket_var]) != 1))
+				fatal_lang_error('wartt_bad_co', false);
+		}
+		if (($bucket_type == 'env_var') && isset($_ENV[$bucket_var])) {
+			if (($bucket_cat == 'ASN') && (preg_match('~^\d{1,6}$~', $_ENV[$bucket_var]) != 1))
+				fatal_lang_error('wartt_bad_asn', false);
+			if (($bucket_cat == 'Country') && (preg_match('~^[A-Z]{2}$~', $_ENV[$bucket_var]) != 1))
+				fatal_lang_error('wartt_bad_co', false);
+		}
 
 		// Minutes validated in form
 		$context['wartt_rule_info']['minutes'] = $smcFunc['htmlspecialchars']($_POST['minutes']);
@@ -1114,15 +1168,15 @@ function wartt_add_rule()
 		$action = $_POST['wartt_action'];
 
 		// Action_pct validated in form
-		$context['wartt_rule_info']['action_pct'] = $smcFunc['htmlspecialchars']($_POST['action_pct']);
-		$action_pct = (int) $_POST['action_pct'];
+		$context['wartt_rule_info']['action_pct'] = $smcFunc['htmlspecialchars']($_POST['action_pct'] ?? 0);
+		$action_pct = (int) ($_POST['action_pct'] ?? 0);
 
 		// Enabled validated in form
 		$context['wartt_rule_info']['enabled'] = (int) isset($_POST['enabled']);
 		$enabled = (int) isset($_POST['enabled']);
 
 		// Passed the gauntlet...  Can add...
-		add_wartt_rule($description, $bucket_type, $bucket_var, $minutes, $threshold, $action, $action_pct, $enabled);
+		add_wartt_rule($description, $bucket_cat, $bucket_type, $bucket_var, $minutes, $threshold, $action, $action_pct, $enabled);
 
 		unset($_SESSION['wartt_rule_info']);
 
@@ -1132,6 +1186,7 @@ function wartt_add_rule()
 
 	// In case we're resuming an edit...
 	$context['wartt_rule_info']['description'] = !empty($_SESSION['wartt_rule_info']['description']) ? $_SESSION['wartt_rule_info']['description'] : '';
+	$context['wartt_rule_info']['bucket_cat'] = !empty($_SESSION['wartt_rule_info']['bucket_cat']) ? $_SESSION['wartt_rule_info']['bucket_cat'] : '';
 	$context['wartt_rule_info']['bucket_type'] = !empty($_SESSION['wartt_rule_info']['bucket_type']) ? $_SESSION['wartt_rule_info']['bucket_type'] : '';
 	$context['wartt_rule_info']['bucket_var'] = !empty($_SESSION['wartt_rule_info']['bucket_var']) ? $_SESSION['wartt_rule_info']['bucket_var'] : '';
 	$context['wartt_rule_info']['minutes'] = !empty($_SESSION['wartt_rule_info']['minutes']) ? $_SESSION['wartt_rule_info']['minutes'] : '';
@@ -1188,6 +1243,7 @@ function wartt_mod_rule()
 
 		// In case you need to come back after errors....
 		$_SESSION['wartt_rule_info']['description'] = !empty($_POST['description']) ? $smcFunc['htmlspecialchars']($_POST['description']) : '';
+		$_SESSION['wartt_rule_info']['bucket_cat'] = !empty($_POST['bucket_cat']) ? $smcFunc['htmlspecialchars']($_POST['bucket_cat']) : '';
 		$_SESSION['wartt_rule_info']['bucket_type'] = !empty($_POST['bucket_type']) ? $smcFunc['htmlspecialchars']($_POST['bucket_type']) : '';
 		$_SESSION['wartt_rule_info']['bucket_var'] = !empty($_POST['bucket_var']) ? $smcFunc['htmlspecialchars']($_POST['bucket_var']) : '';
 		$_SESSION['wartt_rule_info']['minutes'] = !empty($_POST['minutes']) ? $smcFunc['htmlspecialchars']($_POST['minutes']) : '';
@@ -1196,25 +1252,39 @@ function wartt_mod_rule()
 		$_SESSION['wartt_rule_info']['action_pct'] = !empty($_POST['action_pct']) ? $smcFunc['htmlspecialchars']($_POST['action_pct']) : '';
 		$_SESSION['wartt_rule_info']['enabled'] = (int) isset($_POST['enabled']);
 
-		// Validate the description
+		// Description validated in form
 		$context['wartt_rule_info']['description'] = $smcFunc['htmlspecialchars']($_POST['description']);
 		$description = $smcFunc['htmlspecialchars']($_POST['description']);
-		if (!is_string($description) || empty($description) || (strlen($description) > 20))
-			fatal_lang_error('wartt_bad_desc', false);
+
+		// Cat validated in form
+		$context['wartt_rule_info']['bucket_cat'] = $smcFunc['htmlspecialchars']($_POST['bucket_cat']);
+		$bucket_cat = $_POST['bucket_cat'];
 
 		// Type validated in form
-		$context['wartt_rule_info']['bucket_type'] = $_POST['bucket_type'];
-		$bucket_type = $_POST['bucket_type'];
-
-		// Validate the bucket_var
-		$context['wartt_rule_info']['bucket_var'] = $smcFunc['htmlspecialchars']($_POST['bucket_var']);
-		$bucket_var = $smcFunc['htmlspecialchars']($_POST['bucket_var']);
-		if (!is_string($bucket_var) || (in_array($bucket_type, array('server_var', 'env_var')) && empty($bucket_var)) || (strlen($bucket_var) > 255))
-			fatal_lang_error('wartt_bad_var', false);
+		$context['wartt_rule_info']['bucket_type'] = $_POST['bucket_type'] ?? '';
+		$bucket_type = $_POST['bucket_type'] ?? '';
 
 		// Ensure bucket_var exists as a valid $_SERVER or $_ENV variable
+		// Can't be validated in form...
+		$context['wartt_rule_info']['bucket_var'] = $smcFunc['htmlspecialchars']($_POST['bucket_var'] ?? '');
+		$bucket_var = $smcFunc['htmlspecialchars']($_POST['bucket_var'] ?? '');
+
 		if ((($bucket_type == 'server_var') && (!isset($_SERVER[$bucket_var]))) || (($bucket_type == 'env_var') && (!isset($_ENV[$bucket_var]))))
 			fatal_lang_error('wartt_bad_var', false);
+
+		// Ensure bucket_var contains properly formatted co or asn
+		if (($bucket_type == 'server_var') && isset($_SERVER[$bucket_var])) {
+			if (($bucket_cat == 'ASN') && (preg_match('~^\d{1,6}$~', $_SERVER[$bucket_var]) != 1))
+				fatal_lang_error('wartt_bad_asn', false);
+			if (($bucket_cat == 'Country') && (preg_match('~^[A-Z]{2}$~', $_SERVER[$bucket_var]) != 1))
+				fatal_lang_error('wartt_bad_co', false);
+		}
+		if (($bucket_type == 'env_var') && isset($_ENV[$bucket_var])) {
+			if (($bucket_cat == 'ASN') && (preg_match('~^\d{1,6}$~', $_ENV[$bucket_var]) != 1))
+				fatal_lang_error('wartt_bad_asn', false);
+			if (($bucket_cat == 'Country') && (preg_match('~^[A-Z]{2}$~', $_ENV[$bucket_var]) != 1))
+				fatal_lang_error('wartt_bad_co', false);
+		}
 
 		// Minutes validated in form
 		$context['wartt_rule_info']['minutes'] = $smcFunc['htmlspecialchars']($_POST['minutes']);
@@ -1229,15 +1299,15 @@ function wartt_mod_rule()
 		$action = $_POST['wartt_action'];
 
 		// Action_pct validated in form
-		$context['wartt_rule_info']['action_pct'] = $smcFunc['htmlspecialchars']($_POST['action_pct']);
-		$action_pct = (int) $_POST['action_pct'];
+		$context['wartt_rule_info']['action_pct'] = $smcFunc['htmlspecialchars']($_POST['action_pct'] ?? 0);
+		$action_pct = (int) ($_POST['action_pct'] ?? 0);
 
 		// Enabled validated in form
 		$context['wartt_rule_info']['enabled'] = (int) isset($_POST['enabled']);
 		$enabled = (int) isset($_POST['enabled']);
 
 		// Passed the gauntlet...  Can modify...
-		mod_wartt_rule($id_rule, $description, $bucket_type, $bucket_var, $minutes, $threshold, $action, $action_pct, $enabled);
+		mod_wartt_rule($id_rule, $description, $bucket_cat, $bucket_type, $bucket_var, $minutes, $threshold, $action, $action_pct, $enabled);
 
 		unset($_SESSION['wartt_rule_info']);
 
@@ -1248,6 +1318,8 @@ function wartt_mod_rule()
 	// In case we're resuming an edit...
 	if (!empty($_SESSION['wartt_rule_info']['description']))
 		$context['wartt_rule_info']['description'] = $_SESSION['wartt_rule_info']['description'];
+	if (!empty($_SESSION['wartt_rule_info']['bucket_cat']))
+		$context['wartt_rule_info']['bucket_cat'] = $_SESSION['wartt_rule_info']['bucket_cat'];
 	if (!empty($_SESSION['wartt_rule_info']['bucket_type']))
 		$context['wartt_rule_info']['bucket_type'] = $_SESSION['wartt_rule_info']['bucket_type'];
 	if (!empty($_SESSION['wartt_rule_info']['bucket_var']))

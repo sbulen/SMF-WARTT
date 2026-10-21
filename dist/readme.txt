@@ -1,6 +1,8 @@
 [b]Description:[/b]
 The SMF Web Access Real-Time Tracker, or WARTT, allows you to define actions to take when user-defined thresholds are met during a bot attack.
 
+[b][i][u]If upgrading from a version prior to WARTT 1.2, you will need to re-enter your rules due to the database restructure in 1.2.[/u][/i][/b]
+
 The goal here is to automate response, in real-time, of increased guest traffic.  Statistics are kept within a short time window, a couple of hours, for a set of IP buckets.  To keep things fast, these counters are maintained in memory resident tables where possible.  They are cleaned out periodically via a Scheduled Task, for the sake of speed and to ensure you don't blow up memory.
 
 Logged-in users are not impacted.  Only guests & bots are.  WARTT does not allow you to block specific ASNs, countries or IP ranges.  Update your .htaccess for that.  
@@ -13,16 +15,16 @@ WARTT is rule-based.  Each rule defines a bucket of IPs, a threshold, and an act
 
 Thresholds are defined in terms of requests, per a specified number of minutes, per each IP bucket.  E.g., if 10,000 requests are made within 10 minutes per a certain block of IP addresses, take the action for that block of IP addresses.
 
-[b]Blocks of IP addresses may be tracked by:[/b]
- - IP mask, e.g., the first three nodes of an ipv4 IP address.
+[b]Blocks of IP addresses may be categorized four ways:[/b]
  - ASN, the ASN number of a network provider that identifies a set of their IP addresses.
  - Country, the country code associated with a set of IP addresses.
- - Crawl target, which is a special form of an IP mask, specifially tracking the number of requests that are normally dominated by crawlers, e.g., topic= requests.
+ - CIDR, an IP address range.
+ - Crawl target, which is a special form of an CIDR, specifially tracking the number of requests that are normally dominated by crawlers, e.g., topic= requests, within an IP address range.
 
-[b]There are three ways to identify ASN or country:[/b]
- - If you have ASN or Country available via an environment variable, that may be used.  Some hosts provide this.
- - If you have ASN or Country available via a server variable, that may be used.  Some hosts provide this.
- - ASN or country may be looked up by WARTT by IP.  This requires that the SMF Web Access Log Analyzer (WALA) mod is installed, and the DBIP tables for ASN & country are loaded and current.
+[b]There are three types of ASN or country lookups:[/b]
+ - Environment variable: If you have ASN or Country available via an environment variable, that may be used.  Some hosts provide this.
+ - Server variable: If you have ASN or Country available via a server variable, that may be used.  Some hosts provide this.
+ - Lookup: ASN or country may be looked up by WARTT by IP.  This requires that the SMF Web Access Log Analyzer (WALA) mod is installed, and the DBIP tables for ASN & country are loaded and current.
 
 WARTT & WALA work hand-in-hand for IP lookups.
 
@@ -33,7 +35,7 @@ WARTT & WALA work hand-in-hand for IP lookups.
  - Log only - perfect for monitoring activity or testing thresholds.
 
 [b]Crawl Targets:[/b]
- - Many crawlers are effectively disguised as residential users, making it hard to block them without blocking real users.  The Crawl Target bucket type helps segregate humans from crawlers.
+ - The Crawl Target bucket type helps segregate humans from crawlers.  Many crawlers are effectively disguised as residential users, making it hard to block them without blocking real users.
  - WARTT will keep track of the number of requests that are targeted by crawlers separately, e.g., topic=, board=, msg= requests.  Crawlers normally hit these links nearly exclusively.
  - Humans cannot hit these links exclusively without editing their browser URLs hundreds of times in a row.  Human activity must include navigation to those other topics or boards, and typically includes searches and other activity.
 
@@ -64,3 +66,4 @@ Note that good crawlers operate at relatively slow rates.  When configuring craw
  - v1.0.3 Improve cleanup of expired blocks
  - v1.0.4 Fix offset on null error
  - v1.1.0 Add new features - crawl target threshold; whitelists; memory usage view
+ - v1.2.0 Reduce volume of queries & counters, and simplify data structure

@@ -31,6 +31,7 @@ $txt['wartt_crawl_target_requests'] = 'Crawl targets';
 $txt['wartt_modify'] = 'Modify';
 
 $txt['wartt_desc'] = 'Description';
+$txt['wartt_cat'] = 'Bucket Cat';
 $txt['wartt_type'] = 'Bucket Type';
 $txt['wartt_var'] = 'Bucket Var';
 $txt['wartt_minutes'] = 'Minutes';
@@ -40,9 +41,10 @@ $txt['wartt_actpct'] = 'Action Pct';
 $txt['wartt_rule_enabled'] = 'Enabled';
 
 $txt['wartt_desc_desc'] = 'Short note on purpose';
-$txt['wartt_desc_type'] = 'Groups of IPs to track, e.g., by ASN, country, IP mask, Crawl Targets';
+$txt['wartt_desc_cat'] = 'Groups of IPs to track, e.g., ASNs, Countries, CIDRs, Crawl Targets';
+$txt['wartt_desc_type'] = 'ASN and Country source types, e.g., server_var, env_var, DBIP lookup, ';
 $txt['wartt_desc_var'] = 'Required for Env or Server variables - which variable to use';
-$txt['wartt_desc_minutes'] = 'How many minutes to reach threshold, 1 - 1440';
+$txt['wartt_desc_minutes'] = 'How many minutes to reach threshold, 10 - 1440';
 $txt['wartt_desc_threshold'] = 'How many site hits before taking action, 10 - 20000';
 $txt['wartt_desc_action'] = 'Log, Block, or change system setting';
 $txt['wartt_desc_actpct'] = 'Used when blocking only, to thin the herd, 0 - 100%';
@@ -79,13 +81,17 @@ $txt['wartt_clear_log_confirm'] = 'Clear the log?';
 $txt['wartt_clear_blocks'] = 'Clear Blocks';
 $txt['wartt_clear_blocks_confirm'] = 'Clear all blocks?';
 
+// Bucket cat descriptions
+$txt['wartt_bcdesc_asn'] = 'ASN';
+$txt['wartt_bcdesc_country'] = 'Country';
+$txt['wartt_bcdesc_cidr'] = 'CIDR';
+$txt['wartt_bcdesc_crawl_target'] = 'Crawl Target';
+
 // Bucket type descriptions
+$txt['wartt_btdesc_servervar'] = 'Server variable';
+$txt['wartt_btdesc_envvar'] = 'Environment variable';
+$txt['wartt_btdesc_lookup'] = 'DBIP table lookup';
 $txt['wartt_btdesc_ipmask'] = 'IP mask';
-$txt['wartt_btdesc_crawl_tgt'] = 'Crawl Target IP mask';
-$txt['wartt_btdesc_servervar'] = 'Server variable that contains ASN or country';
-$txt['wartt_btdesc_envvar'] = 'Environment variable that contains ASN or country';
-$txt['wartt_btdesc_asnlookup'] = 'Lookup ASN based on IP';
-$txt['wartt_btdesc_colookup'] = 'Lookup country based on IP';
 
 // Action descriptions
 $txt['wartt_adesc_log'] = 'Log only';
@@ -95,7 +101,9 @@ $txt['wartt_adesc_nologct'] = 'Do not include in log online & guest counts';
 
 // Edits
 $txt['wartt_bad_desc'] = 'Description is required and cannot exceed 20 characters';
-$txt['wartt_bad_var'] = 'Invalid bucket system or environment variable - confirm it exists';
+$txt['wartt_bad_var'] = 'Invalid server or environment variable - confirm it exists';
+$txt['wartt_bad_asn'] = 'Invalid server or environment variable - not a valid ASN';
+$txt['wartt_bad_co'] = 'Invalid server or environment variable - not a valid country code';
 
 // Detail screen
 $txt['wartt_no_entries_found'] = 'No entries found';

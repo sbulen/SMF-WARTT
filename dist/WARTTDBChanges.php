@@ -1,4 +1,5 @@
 <?php
+// This script does installs & upgrades for SMF-WARTT.
 
 global $smcFunc, $db_type, $db_prefix;
 
@@ -14,23 +15,17 @@ $create_tables = array(
 				'default' => 0,
 				'not_null' => true,
 			),
-		    array(
-			   'name' => 'id_rule',
-				'type' => 'tinyint',
-				'default' => 0,
+			array(
+				'name' => 'bucket_cat',
+				'type' => 'varchar',
+				'size' => 10,
+				'default' => '',
 				'not_null' => true,
 			),
 			array(
 				'name' => 'ip_bucket',
 				'type' => 'varchar',
 				'size' => 50,
-				'default' => '',
-				'not_null' => true,
-			),
-			array(
-				'name' => 'bucket_type',
-				'type' => 'varchar',
-				'size' => 10,
 				'default' => '',
 				'not_null' => true,
 			),
@@ -74,6 +69,20 @@ $create_tables = array(
 				'not_null' => true,
 			),
 			array(
+				'name' => 'bucket_cat',
+				'type' => 'varchar',
+				'size' => 10,
+				'default' => '',
+				'not_null' => true,
+			),
+			array(
+				'name' => 'ip_bucket',
+				'type' => 'varchar',
+				'size' => 50,
+				'default' => '',
+				'not_null' => true,
+			),
+			array(
 				'name' => 'bucket_type',
 				'type' => 'varchar',
 				'size' => 10,
@@ -109,6 +118,13 @@ $create_tables = array(
 				'name' => 'description',
 				'type' => 'varchar',
 				'size' => 20,
+				'default' => '',
+				'not_null' => true,
+			),
+			array(
+				'name' => 'bucket_cat',
+				'type' => 'varchar',
+				'size' => 10,
 				'default' => '',
 				'not_null' => true,
 			),
@@ -175,6 +191,13 @@ $create_tables = array(
 				'not_null' => true,
 			),
 			array(
+				'name' => 'bucket_cat',
+				'type' => 'varchar',
+				'size' => 10,
+				'default' => '',
+				'not_null' => true,
+			),
+			array(
 				'name' => 'ip_bucket',
 				'type' => 'varchar',
 				'size' => 50,
@@ -211,6 +234,21 @@ db_extend('extra');
 $tables = $smcFunc['db_list_tables'](false, '%wartt%');
 $btree = ($db_type == 'postgresql') ? '' : ' USING BTREE';
 
+// Prior to WARTT v1.2.0, the db was structured differently.  1.2 introduced new cols, removed some cols, changed keys...
+// Due to new cols, the old records cannot be kept.
+// If old format is found, just delete the tables.  Users will have to re-enter rules; everything else will just be rebuilt.
+// Look for id_rule in wartt_counters, solid indication old tables are in use...
+if (in_array($db_prefix . 'wartt_counters', $tables)) {
+	$counter_cols = $smcFunc['db_list_columns']('{db_prefix}wartt_counters');
+	if (in_array('id_rule', $counter_cols)) {
+		$smcFunc['db_drop_table']('{db_prefix}wartt_rules');
+		$smcFunc['db_drop_table']('{db_prefix}wartt_log');
+		$smcFunc['db_drop_table']('{db_prefix}wartt_blocks');
+		$smcFunc['db_drop_table']('{db_prefix}wartt_counters');
+		$tables = array();
+	}
+}
+
 // wartt_rules
 if (!in_array($db_prefix . 'wartt_rules', $tables))
 {
@@ -227,7 +265,7 @@ if (!in_array($db_prefix . 'wartt_log', $tables))
 if (!in_array($db_prefix . 'wartt_blocks', $tables))
 {
 	$smcFunc['db_create_table']('{db_prefix}wartt_blocks', $create_tables['wartt_blocks']['columns'], $create_tables['wartt_blocks']['indexes'], $create_tables['wartt_blocks']['options']);
-	$smcFunc['db_query']('', 'ALTER TABLE {db_prefix}wartt_blocks ADD PRIMARY KEY (id_rule, ip_bucket)' . $btree,
+	$smcFunc['db_query']('', 'ALTER TABLE {db_prefix}wartt_blocks ADD PRIMARY KEY (id_rule, bucket_cat, ip_bucket)' . $btree,
 	array('db_error_skip' => true));
 
 	// Create index needs special treatment due to different syntax & pg not liking btree...
@@ -247,7 +285,7 @@ if (!in_array($db_prefix . 'wartt_blocks', $tables))
 if (!in_array($db_prefix . 'wartt_counters', $tables))
 {
 	$smcFunc['db_create_table']('{db_prefix}wartt_counters', $create_tables['wartt_counters']['columns'], $create_tables['wartt_counters']['indexes'], $create_tables['wartt_counters']['options']);
-	$smcFunc['db_query']('', 'ALTER TABLE {db_prefix}wartt_counters ADD PRIMARY KEY (time_bucket, id_rule, ip_bucket)' . $btree,
+	$smcFunc['db_query']('', 'ALTER TABLE {db_prefix}wartt_counters ADD PRIMARY KEY (time_bucket, bucket_cat, ip_bucket)' . $btree,
 	array('db_error_skip' => true));
 }
 
