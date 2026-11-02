@@ -226,9 +226,9 @@ function wartt_bucket_value($bucket_cat, $bucket_type, $bucket_var)
 			if ($bucket_type === 'lookup')
 				$bucket = get_dbip_asn($_SERVER['REMOTE_ADDR']);
 			elseif ($bucket_type === 'server_var')
-				$bucket = $_SERVER[$bucket_var];
+				$bucket = $_SERVER[$bucket_var] ?? false;
 			elseif ($bucket_type === 'env_var')
-				$bucket = $_ENV[$bucket_var];
+				$bucket = $_ENV[$bucket_var] ?? false;
 			else
 				$bucket = false;
 			// Check whitelist...
@@ -243,9 +243,9 @@ function wartt_bucket_value($bucket_cat, $bucket_type, $bucket_var)
 			if ($bucket_type === 'lookup')
 				$bucket = get_dbip_country($_SERVER['REMOTE_ADDR']);
 			elseif ($bucket_type === 'server_var')
-				$bucket = $_SERVER[$bucket_var];
+				$bucket = $_SERVER[$bucket_var] ?? false;
 			elseif ($bucket_type === 'env_var')
-				$bucket = $_ENV[$bucket_var];
+				$bucket = $_ENV[$bucket_var] ?? false;
 			else
 				$bucket = false;
 			// Check whitelist...
