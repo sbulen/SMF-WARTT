@@ -16,8 +16,8 @@
 
 /* Chunk it up a bit 3... */
 @media (max-width: 480px) {
-	th.minutes, th.threshold, th.action_pct, th.bucket_var, th.bucket_type, th.engine, th.id_rule,
-	td.minutes, td.threshold, td.action_pct, td.bucket_var, td.bucket_type, td.engine, td.id_rule {
+	th.minutes, th.threshold, th.action_pct, th.bucket_var, th.bucket_type, th.engine, th.id_rule, th.crawl_target_requests, th.description, th.id_entry,
+	td.minutes, td.threshold, td.action_pct, td.bucket_var, td.bucket_type, td.engine, td.id_rule, td.crawl_target_requests, td.description, td.id_entry {
 		display: none;
 	}
 }
