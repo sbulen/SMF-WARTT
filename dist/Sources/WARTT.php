@@ -82,6 +82,7 @@ function wartt_check_thresholds()
 	}
 
 	// Check bucket for each active rule
+	$issue_die = false;
 	foreach ($rules AS $rule)
 	{
 		if (!isset($buckets[$rule['bucket_cat']]))
@@ -118,12 +119,15 @@ function wartt_check_thresholds()
 			elseif ($rule['action'] == 'block')
 			{
 				if (rand(0, 99) < $rule['action_pct'])
-				{
-					http_response_code(429);
-					die($txt['wartt_429']);
-				}
+					$issue_die = true;
 			}
 		}
+	}
+
+	// Issue once, outside of loop, so all rules get checked
+	if ($issue_die) {
+		http_response_code(429);
+		die($txt['wartt_429']);
 	}
 }
 
