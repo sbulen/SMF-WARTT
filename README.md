@@ -13,7 +13,7 @@ WARTT is rule-based.  Each rule defines a bucket of IPs, a threshold, and an act
 
 Thresholds are defined in terms of requests, per a specified number of minutes, per each IP bucket.  E.g., if 10,000 requests are made within 10 minutes per a certain block of IP addresses, take the action for that block of IP addresses.
 
-### Blocks of IP addresses may be t categorized four ways:
+### Blocks of IP addresses may be categorized four ways:
  - ASN, the ASN number of a network provider that identifies a set of their IP addresses.
  - Country, the country code associated with a set of IP addresses.
  - CIDR, an IP address range.
